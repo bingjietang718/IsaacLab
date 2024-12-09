@@ -115,7 +115,7 @@ class FactoryEnvCfg(DirectRLEnvCfg):
     )
 
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=32,
+        num_envs=128,
         env_spacing=2.0
     )
 
@@ -145,16 +145,16 @@ class FactoryEnvCfg(DirectRLEnvCfg):
                 contact_offset=0.005,
                 rest_offset=0.0
             ),
-        ), 
+        ),
         init_state=ArticulationCfg.InitialStateCfg(
             joint_pos={
-                "panda_joint1": 0.0, 
-                "panda_joint2": 0.0, 
-                "panda_joint3": 0.0, 
-                "panda_joint4": -1.870, 
-                "panda_joint5": 0.0, 
-                "panda_joint6": 1.8675,
-                "panda_joint7": 0.785398,
+                "panda_joint1": 0.00871, 
+                "panda_joint2": -0.10368, 
+                "panda_joint3": -0.00794, 
+                "panda_joint4": -1.49139, 
+                "panda_joint5": -0.00083, 
+                "panda_joint6": 1.38774,
+                "panda_joint7": 0.0,
                 "panda_finger_joint2": 0.04,
             },
             pos=(0.0, 0.0, 0.0),

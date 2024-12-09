@@ -4,7 +4,7 @@ import torch
 import carb
 import omni.isaac.core.utils.torch as torch_utils
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.assets import Articulation, RigidObject
+from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.envs import DirectRLEnv
 from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
@@ -179,21 +179,21 @@ class FactoryEnv(DirectRLEnv):
         cfg.func("/World/envs/env_.*/Table", cfg, translation=(0.55, 0.0, 0.0), orientation=(0.70711, 0.0, 0.0, 0.70711))
 
         self._robot = Articulation(self.cfg.robot)
-        self._fixed_asset = RigidObject(self.cfg_task.fixed_asset)
-        self._held_asset = RigidObject(self.cfg_task.held_asset)
+        self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
+        self._held_asset = Articulation(self.cfg_task.held_asset)
         if self.cfg_task.name == 'gear_meshing':
-            self._small_gear_asset = RigidObject(self.cfg_task.small_gear_cfg)
-            self._large_gear_asset = RigidObject(self.cfg_task.large_gear_cfg)
+            self._small_gear_asset = Articulation(self.cfg_task.small_gear_cfg)
+            self._large_gear_asset = Articulation(self.cfg_task.large_gear_cfg)
 
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions()
 
         self.scene.articulations["robot"] = self._robot
-        self.scene.rigid_objects["fixed_asset"] = self._fixed_asset
-        self.scene.rigid_objects["held_asset"] = self._held_asset
+        self.scene.articulations["fixed_asset"] = self._fixed_asset
+        self.scene.articulations["held_asset"] = self._held_asset
         if self.cfg_task.name == 'gear_meshing':
-            self.scene.rigid_objects["small_gear"] = self._small_gear_asset
-            self.scene.rigid_objects["large_gear"] = self._large_gear_asset
+            self.scene.articulations["small_gear"] = self._small_gear_asset
+            self.scene.articulations["large_gear"] = self._large_gear_asset
 
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
@@ -549,7 +549,7 @@ class FactoryEnv(DirectRLEnv):
 
         self._set_assets_to_default_pose(env_ids)
         self._set_franka_to_default_pose(
-            joints=[0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398],
+            joints=[1.5178e-03, -1.9651e-01, -1.4364e-03, -1.9761, -2.7717e-04, 1.7796, 7.8556e-01],
             env_ids=env_ids)
         self.step_sim_no_action()
 
@@ -737,54 +737,54 @@ class FactoryEnv(DirectRLEnv):
 
         hand_down_quat = torch.zeros((self.num_envs, 4), dtype=torch.float32, device=self.device)
         self.hand_down_euler = torch.zeros((self.num_envs, 3), dtype=torch.float32, device=self.device)
-        # while True:
-        #     n_bad = bad_envs.shape[0]
+        while True:
+            n_bad = bad_envs.shape[0]
 
-        #     above_fixed_pos = fixed_tip_pos.clone()
-        #     above_fixed_pos[:, 2] += self.cfg_task.hand_init_pos[2]
+            above_fixed_pos = fixed_tip_pos.clone()
+            above_fixed_pos[:, 2] += self.cfg_task.hand_init_pos[2]
 
-        #     rand_sample = torch.rand((n_bad, 3), dtype=torch.float32, device=self.device)
-        #     above_fixed_pos_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
-        #     hand_init_pos_rand = torch.tensor(self.cfg_task.hand_init_pos_noise, device=self.device)
-        #     above_fixed_pos_rand = above_fixed_pos_rand @ torch.diag(hand_init_pos_rand)
-        #     above_fixed_pos[bad_envs] += above_fixed_pos_rand
+            rand_sample = torch.rand((n_bad, 3), dtype=torch.float32, device=self.device)
+            above_fixed_pos_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+            hand_init_pos_rand = torch.tensor(self.cfg_task.hand_init_pos_noise, device=self.device)
+            above_fixed_pos_rand = above_fixed_pos_rand @ torch.diag(hand_init_pos_rand)
+            above_fixed_pos[bad_envs] += above_fixed_pos_rand
 
-        #     # (b) get random orientation facing down
-        #     hand_down_euler = torch.tensor(
-        #         self.cfg_task.hand_init_orn, device=self.device
-        #     ).unsqueeze(0).repeat(n_bad, 1)
+            # (b) get random orientation facing down
+            hand_down_euler = torch.tensor(
+                self.cfg_task.hand_init_orn, device=self.device
+            ).unsqueeze(0).repeat(n_bad, 1)
 
-        #     rand_sample = torch.rand((n_bad, 3), dtype=torch.float32, device=self.device)
-        #     above_fixed_orn_noise = 2 * (rand_sample - 0.5)  # [-1, 1]
-        #     hand_init_orn_rand = torch.tensor(self.cfg_task.hand_init_orn_noise, device=self.device)
-        #     above_fixed_orn_noise = above_fixed_orn_noise @ torch.diag(hand_init_orn_rand)
-        #     hand_down_euler += above_fixed_orn_noise
-        #     self.hand_down_euler[bad_envs, ...] = hand_down_euler
-        #     hand_down_quat[bad_envs, :] = torch_utils.quat_from_euler_xyz(
-        #         roll=hand_down_euler[:, 0],
-        #         pitch=hand_down_euler[:, 1],
-        #         yaw=hand_down_euler[:, 2])
+            rand_sample = torch.rand((n_bad, 3), dtype=torch.float32, device=self.device)
+            above_fixed_orn_noise = 2 * (rand_sample - 0.5)  # [-1, 1]
+            hand_init_orn_rand = torch.tensor(self.cfg_task.hand_init_orn_noise, device=self.device)
+            above_fixed_orn_noise = above_fixed_orn_noise @ torch.diag(hand_init_orn_rand)
+            hand_down_euler += above_fixed_orn_noise
+            self.hand_down_euler[bad_envs, ...] = hand_down_euler
+            hand_down_quat[bad_envs, :] = torch_utils.quat_from_euler_xyz(
+                roll=hand_down_euler[:, 0],
+                pitch=hand_down_euler[:, 1],
+                yaw=hand_down_euler[:, 2])
 
-        #     # (c) iterative IK Method
-        #     self.ctrl_target_fingertip_midpoint_pos[bad_envs, ...] = above_fixed_pos[bad_envs, ...]
-        #     self.ctrl_target_fingertip_midpoint_quat[bad_envs, ...] = hand_down_quat[bad_envs, :]
+            # (c) iterative IK Method
+            self.ctrl_target_fingertip_midpoint_pos[bad_envs, ...] = above_fixed_pos[bad_envs, ...]
+            self.ctrl_target_fingertip_midpoint_quat[bad_envs, ...] = hand_down_quat[bad_envs, :]
 
-        #     pos_error, aa_error = self.set_pos_inverse_kinematics(env_ids=bad_envs)
-        #     pos_error = torch.linalg.norm(pos_error, dim=1) > 1e-3
-        #     angle_error = torch.norm(aa_error, dim=1) > 1e-3
-        #     any_error = torch.logical_or(pos_error, angle_error)
-        #     bad_envs = bad_envs[any_error.nonzero(as_tuple=False).squeeze(-1)]
+            pos_error, aa_error = self.set_pos_inverse_kinematics(env_ids=bad_envs)
+            pos_error = torch.linalg.norm(pos_error, dim=1) > 1e-3
+            angle_error = torch.norm(aa_error, dim=1) > 1e-3
+            any_error = torch.logical_or(pos_error, angle_error)
+            bad_envs = bad_envs[any_error.nonzero(as_tuple=False).squeeze(-1)]
 
-        #     if bad_envs.shape[0] == 0:
-        #         print('Done IK')
-        #         break
+            if bad_envs.shape[0] == 0:
+                print('Done IK')
+                break
 
-        #     self._set_franka_to_default_pose(
-        #         joints=[0.00871, -0.10368, -0.00794, -1.49139, -0.00083, 1.38774, 0.0],
-        #         env_ids=bad_envs)
+            self._set_franka_to_default_pose(
+                joints=[0.00871, -0.10368, -0.00794, -1.49139, -0.00083, 1.38774, 0.0],
+                env_ids=bad_envs)
 
-        #     ik_attempt += 1
-        #     print(f'IK Attempt: {ik_attempt}\tBad Envs: {bad_envs.shape[0]}')
+            ik_attempt += 1
+            print(f'IK Attempt: {ik_attempt}\tBad Envs: {bad_envs.shape[0]}')
 
         self.step_sim_no_action()
 
