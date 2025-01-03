@@ -8,7 +8,7 @@ from omni.isaac.lab.sim import PhysxCfg, SimulationCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
 
-from .assembly_tasks_cfg import PegInsertion, ASSET_DIR
+from .assembly_tasks_cfg import Insertion, ASSET_DIR
 
 OBS_DIM_CFG = {
     'joint_pos': 7,
@@ -41,11 +41,15 @@ class ObsRandCfg:
 class CtrlCfg:
     ema_factor = 0.2
 
-    pos_action_bounds = [0.05, 0.05, 0.05]
-    rot_action_bounds = [1.0, 1.0, 1.0]
+    # pos_action_bounds = [0.05, 0.05, 0.05]
+    # rot_action_bounds = [1.0, 1.0, 1.0]
+    pos_action_bounds = [0.1, 0.1, 0.1]
+    rot_action_bounds = [0.01, 0.01, 0.01]
 
     pos_action_threshold = [0.02, 0.02, 0.02]
-    rot_action_threshold = [0.097, 0.097, 0.097]
+    # rot_action_threshold = [0.097, 0.097, 0.097]
+    # pos_action_threshold = [0.01, 0.01, 0.01]
+    rot_action_threshold = [0.01, 0.01, 0.01]
 
     # reset_task_prop_gains = [300, 300, 300, 20, 20, 20]
     reset_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
@@ -85,14 +89,15 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
         'held_quat',
         'delta_pos']
     
-    task_name: str = 'peg_insertion'  # peg_insertion, gear_meshing, nut_threading
+    task_name: str = 'insertion'  # peg_insertion, gear_meshing, nut_threading
     tasks: dict = {
-        'peg_insertion': PegInsertion()
+        'insertion': Insertion()
     }
     obs_rand: ObsRandCfg = ObsRandCfg()
     ctrl: CtrlCfg = CtrlCfg()
 
-    episode_length_s = 10.0  # Probably need to override.
+    # episode_length_s = 10.0  # Probably need to override.
+    episode_length_s = 5.0
     sim: SimulationCfg = SimulationCfg(
         device="cuda:0",
         dt=1/120,
@@ -182,10 +187,13 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
             "panda_hand": ImplicitActuatorCfg(
                 joint_names_expr=["panda_finger_joint[1-2]"],
                 effort_limit=40.0,
+                # effort_limit=200.0,
                 velocity_limit=0.04,
                 stiffness=7500.0,
+                # stiffness=10000.0,
                 damping=173.0,
                 friction=0.1,
+                # friction=1.0,
                 armature=0.0,
             ),
         },
