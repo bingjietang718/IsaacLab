@@ -4,7 +4,10 @@ from omni.isaac.lab.assets import ArticulationCfg
 import omni.isaac.lab.sim as sim_utils
 
 # ASSET_DIR = '../IsaacLab_benchmark/source/extensions/omni.isaac.lab_assets/data/Factory'
-ASSET_DIR = '/home/bingjie/Downloads/drive-download-20241207T210157Z-001/drive-download-20241207T210157Z-001'
+ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
+DATA_DIR = ' '
+# ASSEMBLY_ID= "factory_8mm"
+ASSEMBLY_ID = '15654'
 
 @configclass
 class FixedAssetCfg:
@@ -51,11 +54,14 @@ class AssemblyTask:
     # Fixed Asset (applies to all tasks)
     fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
     fixed_asset_init_orn_deg: float = 0.0
-    fixed_asset_init_orn_range_deg: float = 360.0
+    # fixed_asset_init_orn_range_deg: float = 360.0
+    fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
-    held_asset_pos_noise: list = [0.0, 0.006, 0.003]  # noise level of the held asset in gripper
-    held_asset_rot_init: float = -90.0
+    # held_asset_pos_noise: list = [0.0, 0.006, 0.003]  # noise level of the held asset in gripper
+    held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
+    held_asset_pos_noise: list = [0.0, 0.0, 0.0]
+    held_asset_rot_init: float = 0.0
 
     # Reward
     ee_success_yaw: float = 0.0  # nut_threading task only.
@@ -78,25 +84,42 @@ class AssemblyTask:
 
 @configclass
 class Peg8mm(HeldAssetCfg):
-    usd_path = f'{ASSET_DIR}/factory_peg_8mm.usd'
+    usd_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_1.usd'
+    obj_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_1.obj'
+    # usd_path = f'{ASSET_DIR}/00731_plug.usd'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
 class Hole8mm(FixedAssetCfg):
-    usd_path = f'{ASSET_DIR}/factory_hole_8mm.usd'
+    usd_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_0.usd'
+    obj_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_0.obj'
+    # usd_path = f'{ASSET_DIR}/00731_socket.usd'
     diameter = 0.0081
-    height = 0.025
+    # height = 0.025
+    height = 0.050896
     base_height = 0.0
 
 @configclass
-class PegInsertion(AssemblyTask):
-    name = 'peg_insertion'
+class Insertion(AssemblyTask):
+    name = 'insertion'
     fixed_asset_cfg = Hole8mm()
     held_asset_cfg = Peg8mm()
     asset_size = 8.0
     duration_s = 10.0
+
+    # SDF reward
+    num_mesh_sample_points = 1000
+
+    # SBC
+    initial_max_disp: float = 0.01  # max initial downward displacement of plug at beginning of curriculum
+    curriculum_success_thresh: float = 0.75  # success rate threshold for increasing curriculum difficulty
+    curriculum_failure_thresh: float = 0.5  # success rate threshold for decreasing curriculum difficulty
+    curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
+    curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
+
+    if_sbc: bool = True 
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.047]  # Relative to fixed asset tip.
@@ -107,10 +130,13 @@ class PegInsertion(AssemblyTask):
     # Fixed Asset (applies to all tasks)
     fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
     fixed_asset_init_orn_deg: float = 0.0
-    fixed_asset_init_orn_range_deg: float = 360.0
+    # fixed_asset_init_orn_range_deg: float = 360.0
+    fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
-    held_asset_pos_noise: list = [0.003, 0.0, 0.003]  # noise level of the held asset in gripper
+    # held_asset_pos_noise: list = [0.003, 0.0, 0.003]  # noise level of the held asset in gripper
+    held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
+    held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
 
     # Rewards
@@ -120,6 +146,9 @@ class PegInsertion(AssemblyTask):
     # Fraction of socket height.
     success_threshold: float = 0.04
     engage_threshold: float = 0.9
+    engage_height_thresh: float = 0.01
+    success_height_thresh: float = 0.003
+    close_error_thresh: float = 0.015
 
     fixed_asset: ArticulationCfg = ArticulationCfg(
         prim_path="/World/envs/env_.*/FixedAsset",
@@ -137,6 +166,9 @@ class PegInsertion(AssemblyTask):
                 solver_position_iteration_count=192,
                 solver_velocity_iteration_count=1,
                 max_contact_impulse=1e32,
+            ),
+            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                fix_root_link=True, # add this so the fixed asset is set to have a fixed base
             ),
             mass_props=sim_utils.MassPropertiesCfg(mass=fixed_asset_cfg.mass),
             collision_props=sim_utils.CollisionPropertiesCfg(
