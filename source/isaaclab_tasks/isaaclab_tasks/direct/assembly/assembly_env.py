@@ -2,13 +2,6 @@ import numpy as np
 import torch
 
 import carb
-# import omni.isaac.core.utils.torch as torch_utils
-# import omni.isaac.lab.sim as sim_utils
-# from omni.isaac.lab.assets import Articulation
-# from omni.isaac.lab.envs import DirectRLEnv
-# from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
-# from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
-
 import isaacsim.core.utils.torch as torch_utils
 import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
@@ -18,12 +11,9 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.math import axis_angle_from_quat
 
 from . import factory_control as fc
-from .factory_env_cfg import OBS_DIM_CFG, STATE_DIM_CFG, FactoryEnvCfg
-
-
-from . import factory_control as fc
 from .assembly_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
-from .torch_jit_utils import quat_to_angle_axis
+# from .torch_jit_utils import quat_to_angle_axis
+from isaaclab.utils.math import axis_angle_from_quat
 
 import warp as wp
 from . import industreal_algo_utils as industreal_algo
@@ -243,7 +233,7 @@ class AssemblyEnv(DirectRLEnv):
             self.fingertip_midpoint_quat,
             torch_utils.quat_conjugate(self.prev_fingertip_quat))
         rot_diff_quat *= torch.sign(rot_diff_quat[:, 0]).unsqueeze(-1)
-        rot_diff_aa = quat_to_angle_axis(rot_diff_quat)
+        rot_diff_aa = axis_angle_from_quat(rot_diff_quat)
 
         self.ee_angvel_fd = (rot_diff_aa[0].unsqueeze(-1) * rot_diff_aa[1]) / dt
         self.prev_fingertip_quat = self.fingertip_midpoint_quat.clone()

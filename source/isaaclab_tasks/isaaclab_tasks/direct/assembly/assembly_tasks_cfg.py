@@ -1,13 +1,45 @@
-from omni.isaac.lab.utils import configclass
-from omni.isaac.lab.assets import ArticulationCfg
+# from omni.isaac.lab.utils import configclass
+# from omni.isaac.lab.assets import ArticulationCfg
 
-import omni.isaac.lab.sim as sim_utils
+# import omni.isaac.lab.sim as sim_utils
 
-# ASSET_DIR = '../IsaacLab_benchmark/source/extensions/omni.isaac.lab_assets/data/Factory'
-ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
+import isaaclab.sim as sim_utils
+from isaaclab.assets import ArticulationCfg
+from isaaclab.utils import configclass
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+
+ASSET_DIR = f"{ISAACLAB_NUCLEUS_DIR}/Factory"
+
+# ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
 DATA_DIR = ' '
 # ASSEMBLY_ID= "factory_8mm"
 ASSEMBLY_ID = '15654'
+
+OBS_DIM_CFG = {
+    "fingertip_pos": 3,
+    "fingertip_pos_rel_fixed": 3,
+    "fingertip_quat": 4,
+    "ee_linvel": 3,
+    "ee_angvel": 3,
+}
+
+STATE_DIM_CFG = {
+    "fingertip_pos": 3,
+    "fingertip_pos_rel_fixed": 3,
+    "fingertip_quat": 4,
+    "ee_linvel": 3,
+    "ee_angvel": 3,
+    "joint_pos": 7,
+    "held_pos": 3,
+    "held_pos_rel_fixed": 3,
+    "held_quat": 4,
+    "fixed_pos": 3,
+    "fixed_quat": 4,
+    "task_prop_gains": 6,
+    "ema_factor": 1,
+    "pos_threshold": 3,
+    "rot_threshold": 3,
+}
 
 @configclass
 class FixedAssetCfg:
