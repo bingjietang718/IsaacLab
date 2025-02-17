@@ -3,6 +3,7 @@ import torch
 
 import carb
 import isaacsim.core.utils.torch as torch_utils
+
 import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.envs import DirectRLEnv
@@ -12,11 +13,12 @@ from isaaclab.utils.math import axis_angle_from_quat
 
 from . import factory_control as fc
 from .assembly_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
-# from .torch_jit_utils import quat_to_angle_axis
-from isaaclab.utils.math import axis_angle_from_quat
 
+import json
 import warp as wp
 from . import industreal_algo_utils as industreal_algo
+from . import automate_algo_utils as automate_algo
+from soft_dtw_cuda import SoftDTW
 
 class AssemblyEnv(DirectRLEnv):
     cfg: AssemblyEnvCfg
@@ -25,8 +27,6 @@ class AssemblyEnv(DirectRLEnv):
         # Update number of obs/states
         cfg.observation_space = sum([OBS_DIM_CFG[obs] for obs in cfg.obs_order])
         cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
-        # cfg.observation_space += cfg.action_space
-        # cfg.state_space += cfg.action_space
         self.cfg_task = cfg.tasks[cfg.task_name]
 
         super().__init__(cfg, render_mode, **kwargs)
@@ -38,10 +38,12 @@ class AssemblyEnv(DirectRLEnv):
 
         wp.init()
         self.wp_device = wp.get_preferred_device()
-        self.plug_mesh, self.plug_sample_points, self.socket_mesh = industreal_algo.load_asset_mesh_in_warp(self.cfg_task.held_asset_cfg.obj_path, 
-                                                                                                            self.cfg_task.fixed_asset_cfg.obj_path, 
+        self.plug_mesh, self.plug_sample_points, self.socket_mesh = industreal_algo.load_asset_mesh_in_warp(self.cfg_task.assembly_dir+self.cfg_task.held_asset_cfg.obj_path, 
+                                                                                                            self.cfg_task.assembly_dir+self.cfg_task.fixed_asset_cfg.obj_path, 
                                                                                                             self.cfg_task.num_mesh_sample_points, 
                                                                                                             self.wp_device)
+        # Create criterion for dynamic time warping (later used for imitation reward)
+        self.soft_dtw_criterion = SoftDTW(use_cuda=True, gamma=self.cfg_task.soft_dtw_gamma)
 
     def _set_body_inertias(self):
         """ Note: this is to account for the asset_options.armature parameter in IGE. """
@@ -116,10 +118,16 @@ class AssemblyEnv(DirectRLEnv):
         self.held_base_pos = torch.zeros_like(self.held_base_pos_local)
         self.held_base_quat = self.identity_quat.clone().detach()
 
-        self.gripper_goal_pos_local = torch.tensor(
-            # [0.0, 0.0, 0.03], device=self.device
-            [0.0, 0.0, 0.01], device=self.device
-        ).unsqueeze(0).repeat(self.num_envs, 1)
+        self.plug_grasps, self.disassembly_dists = self._load_assembly_info()
+        self.curriculum_height_bound, self.curriculum_height_step = self._get_curriculum_info(self.disassembly_dists)
+        self._load_disassembly_data()
+
+        # Load grasp pose from json files given assembly ID
+        # Grasp pose tensors
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -self.cfg_task.palm_to_finger_dist], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
+        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], -1, 1)
 
         # Computer body indices.
         self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
@@ -158,6 +166,49 @@ class AssemblyEnv(DirectRLEnv):
             self.curr_max_disp = self.cfg_task.initial_max_disp
         else:
             self.curr_max_disp = self.cfg_task.curriculum_height_bound[0]
+
+    def _load_assembly_info(self):
+        """Load grasp pose and disassembly distance for plugs in each environment."""
+
+        in_file = open(self.cfg_task.plug_grasp_json, "r")
+        plug_grasp_dict = json.load(in_file)
+        plug_grasps = [ plug_grasp_dict[f'asset_{self.cfg_task.assembly_id}'] for i in range(self.num_envs)]
+
+        in_file = open(self.cfg_task.disassembly_dist_json, "r")
+        disassembly_dist_dict = json.load(in_file)
+        disassembly_dists = [ disassembly_dist_dict[f'asset_{self.cfg_task.assembly_id}'] for i in range(self.num_envs)]
+
+        return torch.as_tensor(plug_grasps).to(self.device), torch.as_tensor(disassembly_dists).to(self.device)
+
+    def _get_curriculum_info(self, disassembly_dists):
+        """Calculate the ranges and step sizes for Sampling-based Curriculum (SBC) in each environment."""
+
+        curriculum_height_bound = torch.zeros((self.num_envs, 2), dtype=torch.float32, device=self.device)
+        curriculum_height_step = torch.zeros((self.num_envs, 2), dtype=torch.float32, device=self.device)
+
+        curriculum_height_bound[:, 1] = disassembly_dists + self.cfg_task.curriculum_freespace_range
+
+        curriculum_height_step[:, 0] = curriculum_height_bound[:, 1] / self.cfg_task.num_curriculum_step
+        curriculum_height_step[:, 1] = - curriculum_height_step[:, 0] / 2.0
+
+        return curriculum_height_bound, curriculum_height_step
+
+    def _load_disassembly_data(self):
+        """Load pre-collected disassembly trajectories (end-effector position only)."""
+        
+        in_file = open(self.cfg_task.disassembly_path_json, "r")
+        disassembly_traj = json.load(in_file)
+
+        eef_pos_traj = []
+
+        for i in range(len(disassembly_traj)):
+            curr_ee_traj = np.asarray(disassembly_traj[i]['fingertip_centered_pos']).reshape((-1, 3))
+            curr_ee_goal = np.asarray(disassembly_traj[i]['fingertip_centered_pos']).reshape((-1, 3))[0,:]
+            
+            # offset each trajectory to be relative to the goal
+            eef_pos_traj.append(curr_ee_traj-curr_ee_goal)
+
+        self.eef_pos_traj = torch.tensor(eef_pos_traj, dtype=torch.float32, device=self.device).squeeze()
 
     def _get_keypoint_offsets(self, num_keypoints):
         """ Get uniformly-spaced keypoints along a line of unit length, centered at 0. """
@@ -220,8 +271,15 @@ class AssemblyEnv(DirectRLEnv):
         self.gripper_goal_quat, self.gripper_goal_pos = torch_utils.tf_combine(
             self.fixed_quat,
             self.fixed_pos,
-            self.identity_quat,
-            self.gripper_goal_pos_local,
+            self.plug_grasp_quat_local,
+            self.plug_grasp_pos_local,
+        )
+
+        self.gripper_goal_quat, self.gripper_goal_pos = torch_utils.tf_combine(
+            self.gripper_goal_quat,
+            self.gripper_goal_pos,
+            self.robot_to_gripper_quat,
+            self.palm_to_finger_center,
         )
 
         # Finite-differencing results in more reliable velocity estimates.
@@ -230,12 +288,11 @@ class AssemblyEnv(DirectRLEnv):
 
         # Add state differences if velocity isn't being added.
         rot_diff_quat = torch_utils.quat_mul(
-            self.fingertip_midpoint_quat,
-            torch_utils.quat_conjugate(self.prev_fingertip_quat))
+            self.fingertip_midpoint_quat, torch_utils.quat_conjugate(self.prev_fingertip_quat)
+        )
         rot_diff_quat *= torch.sign(rot_diff_quat[:, 0]).unsqueeze(-1)
         rot_diff_aa = axis_angle_from_quat(rot_diff_quat)
-
-        self.ee_angvel_fd = (rot_diff_aa[0].unsqueeze(-1) * rot_diff_aa[1]) / dt
+        self.ee_angvel_fd = rot_diff_aa / dt
         self.prev_fingertip_quat = self.fingertip_midpoint_quat.clone()
 
         joint_diff = self.joint_pos[:, 0:7] - self.prev_joint_pos
@@ -275,7 +332,7 @@ class AssemblyEnv(DirectRLEnv):
             'fingertip_pos': self.fingertip_midpoint_pos,
             'fingertip_quat': self.fingertip_midpoint_quat,
             'fingertip_goal_pos': self.gripper_goal_pos,
-            'fingertip_goal_quat': self.identity_quat,
+            'fingertip_goal_quat': self.gripper_goal_quat,
             'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
         }
 
@@ -287,7 +344,7 @@ class AssemblyEnv(DirectRLEnv):
             'ee_linvel': self.fingertip_midpoint_linvel,
             'ee_angvel': self.fingertip_midpoint_angvel,
             'fingertip_goal_pos': self.gripper_goal_pos,
-            'fingertip_goal_quat': self.identity_quat,
+            'fingertip_goal_quat': self.gripper_goal_quat,
             'held_pos': self.held_pos,
             'held_quat': self.held_quat,
             'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
@@ -314,7 +371,7 @@ class AssemblyEnv(DirectRLEnv):
 
         self.actions = self.cfg.ctrl.ema_factor*action.clone().to(self.device) + (1-self.cfg.ctrl.ema_factor)*self.actions
 
-    def close_gripper_in_place(self):
+    def move_gripper_in_place(self, ctrl_target_gripper_dof_pos):
         """ Keep gripper in current position as gripper closes. """
         actions = torch.zeros((self.num_envs, 6), device=self.device)
         ctrl_target_gripper_dof_pos = 0.0
@@ -450,12 +507,12 @@ class AssemblyEnv(DirectRLEnv):
         """ Update rewards and compute success statistics. """
         # Get successful and failed envs at current timestep
 
-        curr_successes = industreal_algo.check_plug_inserted_in_socket(
+        curr_successes = automate_algo.check_plug_inserted_in_socket(
             self.held_pos, 
             self.fixed_pos,
+            self.disassembly_dists,
             self.keypoints_held,
             self.keypoints_fixed,
-            self.cfg_task.success_height_thresh,
             self.cfg_task.close_error_thresh,
             self.episode_length_buf
         )
@@ -468,30 +525,20 @@ class AssemblyEnv(DirectRLEnv):
 
             if self.cfg_task.if_sbc:
             
-                rew_buf *= industreal_algo.get_curriculum_reward_scale(
-                    cfg_task=self.cfg_task,
-                    curr_max_disp=self.curr_max_disp
+                rew_buf *= automate_algo.get_curriculum_reward_scale(
+                    curr_max_disp=self.curr_max_disp,
+                    curriculum_height_bound=self.curriculum_height_bound,
                 )
 
-                self.curr_max_disp = industreal_algo.get_new_max_disp(
+                self.curr_max_disp = automate_algo.get_new_max_disp(
                     curr_success=torch.count_nonzero(curr_successes) / self.num_envs,
                     cfg_task=self.cfg_task,
+                    curriculum_height_bound=self.curriculum_height_bound, 
+                    curriculum_height_step=self.curriculum_height_step,
                     curr_max_disp=self.curr_max_disp
                 )
 
             self.extras["curr_max_disp"] = self.curr_max_disp
-
-        # Get the time at which an episode first succeeds.
-        first_success = torch.logical_and(curr_successes, torch.logical_not(self.ep_succeeded))
-        self.ep_succeeded[curr_successes] = 1
-
-        first_success_ids = first_success.nonzero(as_tuple=False).squeeze(-1)
-        self.ep_success_times[first_success_ids] = self.episode_length_buf[first_success_ids]
-        nonzero_success_ids = self.ep_success_times.nonzero(as_tuple=False).squeeze(-1)
-
-        if len(nonzero_success_ids) > 0:  # Only log for successful episodes.
-            success_times = self.ep_success_times[nonzero_success_ids].sum() / len(nonzero_success_ids)
-            self.extras["success_times"] = success_times
 
         self.prev_actions = self.actions.clone()
         return rew_buf
@@ -514,18 +561,30 @@ class AssemblyEnv(DirectRLEnv):
         
         rew_dict['curr_successes'] = curr_successes.clone().float()
 
-        curr_engaged = industreal_algo.check_plug_inserted_in_socket(
-            self.held_pos, 
-            self.fixed_pos,
-            self.keypoints_held,
-            self.keypoints_fixed,
-            self.cfg_task.engage_height_thresh,
-            self.cfg_task.close_error_thresh,
-            self.episode_length_buf
-        )
-        rew_dict['curr_engaged'] = curr_engaged.clone().float()
+        # Imitation Reward: Calculate reward
+        curr_eef_pos = self.fingertip_midpoint_pos - self.gripper_goal_pos # relative position instead of absolute position
+        rew_dict['imitation'] = automate_algo.get_imitation_reward_from_dtw(self.eef_pos_traj, 
+                                                                    curr_eef_pos, 
+                                                                    self.prev_fingertip_midpoint_pos, 
+                                                                    self.soft_dtw_criterion, 
+                                                                    self.device)
 
-        rew_buf = rew_dict['sdf'] + rew_dict['curr_engaged'] + rew_dict['curr_successes']
+        self.prev_fingertip_midpoint_pos = torch.cat(
+            (self.prev_fingertip_midpoint_pos[:, 1:, :], curr_eef_pos.unsqueeze(1).clone().detach()), dim=1
+        )
+
+        # curr_engaged = automate_algo.check_plug_inserted_in_socket(
+        #     self.held_pos, 
+        #     self.fixed_pos,
+        #     self.disassembly_dist,
+        #     self.keypoints_held,
+        #     self.keypoints_fixed,
+        #     self.cfg_task.close_error_thresh,
+        #     self.episode_length_buf
+        # )
+        # rew_dict['curr_engaged'] = curr_engaged.clone().float()
+
+        rew_buf = rew_dict['sdf'] + rew_dict['imitation'] + rew_dict['curr_successes']
 
         for rew_name, rew in rew_dict.items():
             self.extras[f'logs_rew_{rew_name}'] = rew.mean()
@@ -540,24 +599,31 @@ class AssemblyEnv(DirectRLEnv):
 
         self._set_assets_to_default_pose(env_ids)
         self._set_franka_to_default_pose(
-            joints=[0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398],
+            joints=self.cfg.ctrl.reset_joints,
             env_ids=env_ids)
         self.step_sim_no_action()
 
         self.randomize_initial_state(env_ids)
+
+        prev_fingertip_midpoint_pos = (self.fingertip_midpoint_pos-self.gripper_goal_pos).unsqueeze(1) # (num_envs, 1, 3)
+        self.prev_fingertip_midpoint_pos = torch.repeat_interleave(prev_fingertip_midpoint_pos, 
+                                                                    self.cfg_task.num_point_robot_traj, 
+                                                                    dim=1) # (num_envs, num_point_robot_traj, 3)
 
     def _set_assets_to_default_pose(self, env_ids):
         """ Move assets to default pose before randomization. """
         held_state = self._held_asset.data.default_root_state.clone()[env_ids]
         held_state[:, 0:3] += self.scene.env_origins[env_ids]
         held_state[:, 7:] = 0.0
-        self._held_asset.write_root_state_to_sim(held_state, env_ids=env_ids)
+        self._held_asset.write_root_pose_to_sim(held_state[:, 0:7], env_ids=env_ids)
+        self._held_asset.write_root_velocity_to_sim(held_state[:, 7:], env_ids=env_ids)
         self._held_asset.reset()
 
         fixed_state = self._fixed_asset.data.default_root_state.clone()[env_ids]
         fixed_state[:, 0:3] += self.scene.env_origins[env_ids]
         fixed_state[:, 7:] = 0.0
-        self._fixed_asset.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._fixed_asset.write_root_pose_to_sim(fixed_state[:, 0:7], env_ids=env_ids)
+        self._fixed_asset.write_root_velocity_to_sim(fixed_state[:, 7:], env_ids=env_ids)
         self._fixed_asset.reset()
 
     def _move_gripper_to_grasp_pose(self, env_ids):
@@ -566,28 +632,36 @@ class AssemblyEnv(DirectRLEnv):
         gripper_goal_quat, gripper_goal_pos = torch_utils.tf_combine(
             self.held_quat,
             self.held_pos,
-            self.identity_quat,
-            self.gripper_goal_pos_local,
+            self.plug_grasp_quat_local,
+            self.plug_grasp_pos_local,
+        )
+
+        gripper_goal_quat, gripper_goal_pos = torch_utils.tf_combine(
+            gripper_goal_quat, 
+            gripper_goal_pos,
+            self.robot_to_gripper_quat,
+            self.palm_to_finger_center,
         )
 
         # Set target_pos
         self.ctrl_target_fingertip_midpoint_pos = gripper_goal_pos.clone()
 
         # Set target rot
-        ctrl_target_fingertip_centered_euler = (
-            torch.tensor(
-                self.cfg_task.hand_init_orn,
-                device=self.device,
-            )
-            .unsqueeze(0)
-            .repeat(self.num_envs, 1)
-        )
+        # ctrl_target_fingertip_centered_euler = (
+        #     torch.tensor(
+        #         self.cfg_task.hand_init_orn,
+        #         device=self.device,
+        #     )
+        #     .unsqueeze(0)
+        #     .repeat(self.num_envs, 1)
+        # )
 
-        self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
-            ctrl_target_fingertip_centered_euler[:, 0],
-            ctrl_target_fingertip_centered_euler[:, 1],
-            ctrl_target_fingertip_centered_euler[:, 2],
-        )
+        # self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
+        #     ctrl_target_fingertip_centered_euler[:, 0],
+        #     ctrl_target_fingertip_centered_euler[:, 1],
+        #     ctrl_target_fingertip_centered_euler[:, 2],
+        # )
+        self.ctrl_target_fingertip_midpoint_quat = gripper_goal_quat.clone()
 
         self.set_pos_inverse_kinematics(env_ids)
         self.step_sim_no_action()
@@ -595,7 +669,7 @@ class AssemblyEnv(DirectRLEnv):
     def set_pos_inverse_kinematics(self, env_ids):
         """ Set robot joint position using DLS IK. """
         ik_time = 0.0
-        while ik_time < 0.25:
+        while ik_time < 0.50:
             # Compute error to target.
             pos_error, axis_angle_error = fc.get_pose_error(
                 fingertip_midpoint_pos=self.fingertip_midpoint_pos[env_ids],
@@ -630,7 +704,8 @@ class AssemblyEnv(DirectRLEnv):
 
     def _set_franka_to_default_pose(self, joints, env_ids):
         """ Return Franka to its default joint position. """
-        gripper_width = self.cfg_task.held_asset_cfg.diameter / 2 * 1.25
+        # gripper_width = self.cfg_task.held_asset_cfg.diameter / 2 * 1.25
+        gripper_width = self.cfg_task.hand_width_max
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_pos[:, 7:] = gripper_width  # MIMIC
         joint_pos[:, :7] = torch.tensor(joints, device=self.device)[None, :]
@@ -714,8 +789,9 @@ class AssemblyEnv(DirectRLEnv):
         held_state[env_ids, 3:7] = self.fixed_quat[env_ids].clone()
         held_state[env_ids, 7:] = 0.0
         
-        held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.height
-        held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.base_height 
+        # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.height
+        # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.base_height 
+        held_state[env_ids, 2] += self.disassembly_dists
         held_state[env_ids, 2] -= self.curriculum_disp
 
         plug_partial_insert_idx = torch.argwhere(
@@ -752,31 +828,24 @@ class AssemblyEnv(DirectRLEnv):
 
         self._move_gripper_to_grasp_pose(env_ids)
 
-        # self.randomize_held_initial_state(env_ids, pre_grasp=False)
+        self.randomize_held_initial_state(env_ids, pre_grasp=False)
 
         #  Close hand
         # Set gains to use for quick resets.
-        reset_task_prop_gains = torch.tensor(
-            self.cfg.ctrl.reset_task_prop_gains,
-            device=self.device
-        ).repeat((self.num_envs, 1))
+        reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
+            (self.num_envs, 1)
+        )
         reset_rot_deriv_scale = self.cfg.ctrl.reset_rot_deriv_scale
         self._set_gains(reset_task_prop_gains, reset_rot_deriv_scale)
 
         self.step_sim_no_action()
 
         grasp_time = 0.0
-        while grasp_time < 0.25:
-            self.ctrl_target_joint_pos[env_ids, 7:] = 0.0  # Close gripper.
-            self.ctrl_target_gripper_dof_pos = 0.0
-            self.close_gripper_in_place()
+        while grasp_time < 0.50:
+            # self.ctrl_target_joint_pos[env_ids, 7:] = 0.0  # Close gripper.
+            self.move_gripper_in_place(ctrl_target_gripper_dof_pos=0.0)
             self.step_sim_no_action()
             grasp_time += self.sim.get_physics_dt()
-
-            diff = self.target_held_base_pos - self.held_base_pos
-
-        bad_idxs = env_ids[diff[:, 1] > 0.05]
-        # print('Bad:', bad_idxs)
 
         self.prev_joint_pos = self.joint_pos[:, 0:7].clone()
         self.prev_fingertip_pos = self.fingertip_midpoint_pos.clone()
