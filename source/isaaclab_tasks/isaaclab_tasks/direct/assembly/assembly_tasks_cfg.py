@@ -1,19 +1,9 @@
-# from omni.isaac.lab.utils import configclass
-# from omni.isaac.lab.assets import ArticulationCfg
-
-# import omni.isaac.lab.sim as sim_utils
-
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-ASSET_DIR = f"{ISAACLAB_NUCLEUS_DIR}/Factory"
-
-# ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
-DATA_DIR = ' '
-# ASSEMBLY_ID= "factory_8mm"
-ASSEMBLY_ID = '15654'
+ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -74,6 +64,9 @@ class AssemblyTask:
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
 
+    # palm_to_finger_dist: float = 0.1034
+    palm_to_finger_dist: float = 0.1234
+
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.015]  # Relative to fixed asset tip.
     hand_init_pos_noise: list = [0.02, 0.02, 0.01]
@@ -106,63 +99,72 @@ class AssemblyTask:
     # Each list defines [a, b] which control the slope and maximum of the squashing function.
     num_keypoints: int = 4
     keypoint_scale: float = 0.15
-    keypoint_coef_baseline: list = [5, 4]  # General movement towards fixed object.
-    keypoint_coef_coarse: list = [50, 2]  # Movement to align the assets.
-    keypoint_coef_fine: list = [100, 0]  # Smaller distances for threading or last-inch insertion.
+    
     # Fixed-asset height fraction for which different bonuses are rewarded (see individual tasks).
     success_threshold: float = 0.04
     engage_threshold: float = 0.9
 
+    # SDF reward
+    sdf_rwd_scale: float = 1.0
+    num_mesh_sample_points: int = 1000
+
+    # Imitation reward
+    soft_dtw_gamma: float = 0.01 # set to 0 if want to use the original DTW without any smoothing
+    num_point_robot_traj: int = 10 # number of waypoints included in the end-effector trajectory
+    # SBC
+    initial_max_disp: float = 0.01  # max initial downward displacement of plug at beginning of curriculum
+    curriculum_success_thresh: float = 0.8  # success rate threshold for increasing curriculum difficulty
+    curriculum_failure_thresh: float = 0.5  # success rate threshold for decreasing curriculum difficulty
+    curriculum_freespace_range: float = 0.01
+    num_curriculum_step: int = 10
+    curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
+    curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
+
+    if_sbc: bool = True 
+
 
 @configclass
 class Peg8mm(HeldAssetCfg):
-    usd_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_1.usd'
-    obj_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_1.obj'
-    # usd_path = f'{ASSET_DIR}/00731_plug.usd'
+    usd_path = 'plug.usd'
+    obj_path = 'plug.obj'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
 class Hole8mm(FixedAssetCfg):
-    usd_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_0.usd'
-    obj_path = f'{ASSET_DIR}/{ASSEMBLY_ID}_0.obj'
-    # usd_path = f'{ASSET_DIR}/00731_socket.usd'
+    usd_path = 'socket.usd'
+    obj_path = 'socket.obj'
     diameter = 0.0081
-    # height = 0.025
     height = 0.050896
     base_height = 0.0
 
 @configclass
 class Insertion(AssemblyTask):
     name = 'insertion'
+
+    assembly_id = '00731'
+    assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
+
     fixed_asset_cfg = Hole8mm()
     held_asset_cfg = Peg8mm()
     asset_size = 8.0
     duration_s = 10.0
 
-    # SDF reward
-    num_mesh_sample_points = 1000
-
-    # SBC
-    initial_max_disp: float = 0.01  # max initial downward displacement of plug at beginning of curriculum
-    curriculum_success_thresh: float = 0.75  # success rate threshold for increasing curriculum difficulty
-    curriculum_failure_thresh: float = 0.5  # success rate threshold for decreasing curriculum difficulty
-    curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
-    curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
-
-    if_sbc: bool = True 
+    plug_grasp_json = f'{ASSET_DIR}/plug_grasps.json'
+    disassembly_dist_json = f'{ASSET_DIR}/disassembly_dist.json'
+    disassembly_path_json = f'{assembly_dir}/disassemble_traj.json'
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.047]  # Relative to fixed asset tip.
     hand_init_pos_noise: list = [0.02, 0.02, 0.01]
     hand_init_orn: list = [3.1416, 0.0, 0.0]
     hand_init_orn_noise: list = [0.0, 0.0, 0.785]
+    hand_width_max: float = 0.080  # maximum opening width of gripper
 
     # Fixed Asset (applies to all tasks)
     fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
     fixed_asset_init_orn_deg: float = 0.0
-    # fixed_asset_init_orn_range_deg: float = 360.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
@@ -185,7 +187,7 @@ class Insertion(AssemblyTask):
     fixed_asset: ArticulationCfg = ArticulationCfg(
         prim_path="/World/envs/env_.*/FixedAsset",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=fixed_asset_cfg.usd_path,
+            usd_path=f'{assembly_dir}{fixed_asset_cfg.usd_path}',
             activate_contact_sensors=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
@@ -219,7 +221,7 @@ class Insertion(AssemblyTask):
     held_asset: ArticulationCfg = ArticulationCfg(
         prim_path="/World/envs/env_.*/HeldAsset",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=held_asset_cfg.usd_path,
+            usd_path=f'{assembly_dir}{held_asset_cfg.usd_path}',
             activate_contact_sensors=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=True,

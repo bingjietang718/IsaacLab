@@ -1,14 +1,5 @@
-# import omni.isaac.lab.sim as sim_utils
-
-# from omni.isaac.lab.actuators.actuator_cfg import ImplicitActuatorCfg
-# from omni.isaac.lab.assets import ArticulationCfg
-# from omni.isaac.lab.envs import DirectRLEnvCfg
-# from omni.isaac.lab.scene import InteractiveSceneCfg
-# from omni.isaac.lab.sim import PhysxCfg, SimulationCfg
-# from omni.isaac.lab.utils import configclass
-# from omni.isaac.lab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
-
 import isaaclab.sim as sim_utils
+
 from isaaclab.actuators.actuator_cfg import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 from isaaclab.envs import DirectRLEnvCfg
@@ -50,23 +41,18 @@ class ObsRandCfg:
 class CtrlCfg:
     ema_factor = 0.2
 
-    # pos_action_bounds = [0.05, 0.05, 0.05]
-    # rot_action_bounds = [1.0, 1.0, 1.0]
     pos_action_bounds = [0.1, 0.1, 0.1]
     rot_action_bounds = [0.01, 0.01, 0.01]
 
     pos_action_threshold = [0.02, 0.02, 0.02]
-    # rot_action_threshold = [0.097, 0.097, 0.097]
-    # pos_action_threshold = [0.01, 0.01, 0.01]
     rot_action_threshold = [0.01, 0.01, 0.01]
 
-    # reset_task_prop_gains = [300, 300, 300, 20, 20, 20]
+    reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
     reset_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
     reset_rot_deriv_scale = 10.0
-    # default_task_prop_gains = [100, 100, 100, 30, 30, 30]
     default_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
 
-    # default_dof_pos_tensor = [-1.3003, -0.4015,  1.1791, -2.1493,  0.4001,  1.9425,  0.4754]
+    # Null space parameters.
     default_dof_pos_tensor = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
     kp_null = 10.0
     kd_null = 6.3246
@@ -195,11 +181,11 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
             ),
             "panda_hand": ImplicitActuatorCfg(
                 joint_names_expr=["panda_finger_joint[1-2]"],
-                effort_limit=40.0,
-                # effort_limit=200.0,
+                # effort_limit=40.0,
+                effort_limit=200.0,
                 velocity_limit=0.04,
-                stiffness=7500.0,
-                # stiffness=10000.0,
+                # stiffness=7500.0,
+                stiffness=10000.0,
                 damping=173.0,
                 friction=0.1,
                 # friction=1.0,

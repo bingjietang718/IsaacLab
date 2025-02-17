@@ -188,6 +188,10 @@ def _apply_task_space_gains(
         0.0 - fingertip_midpoint_linvel
     )
 
+    print((
+        0.0 - fingertip_midpoint_angvel
+    ).shape)
+
     # Apply gains to rot error components
     rot_error = delta_fingertip_pose[:, 3:6]
     task_wrench[:, 3:6] = task_prop_gains[:, 3:6] * rot_error + task_deriv_gains[:, 3:6] * (
