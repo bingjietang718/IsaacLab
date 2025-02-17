@@ -64,8 +64,8 @@ class AssemblyTask:
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
 
-    # palm_to_finger_dist: float = 0.1034
-    palm_to_finger_dist: float = 0.1234
+    palm_to_finger_dist: float = 0.1034
+    # palm_to_finger_dist: float = 0.1234
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.015]  # Relative to fixed asset tip.
@@ -109,8 +109,10 @@ class AssemblyTask:
     num_mesh_sample_points: int = 1000
 
     # Imitation reward
+    imitation_rwd_scale: float = 1.0
     soft_dtw_gamma: float = 0.01 # set to 0 if want to use the original DTW without any smoothing
     num_point_robot_traj: int = 10 # number of waypoints included in the end-effector trajectory
+    
     # SBC
     initial_max_disp: float = 0.01  # max initial downward displacement of plug at beginning of curriculum
     curriculum_success_thresh: float = 0.8  # success rate threshold for increasing curriculum difficulty

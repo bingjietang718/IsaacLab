@@ -263,7 +263,7 @@ class AssemblyEnv(DirectRLEnv):
         self.left_finger_jacobian = jacobians[:, self.left_finger_body_idx - 1, 0:6, 0:7]
         self.right_finger_jacobian = jacobians[:, self.right_finger_body_idx - 1, 0:6, 0:7]
         self.fingertip_midpoint_jacobian = (self.left_finger_jacobian + self.right_finger_jacobian) * 0.5
-        self.arm_mass_matrix = self._robot.root_physx_view.get_mass_matrices()[:, 0:7, 0:7]
+        self.arm_mass_matrix = self._robot.root_physx_view.get_generalized_mass_matrices()[:, 0:7, 0:7]
         self.joint_pos = self._robot.data.joint_pos.clone()
         self.joint_vel = self._robot.data.joint_vel.clone()
 
@@ -573,18 +573,7 @@ class AssemblyEnv(DirectRLEnv):
             (self.prev_fingertip_midpoint_pos[:, 1:, :], curr_eef_pos.unsqueeze(1).clone().detach()), dim=1
         )
 
-        # curr_engaged = automate_algo.check_plug_inserted_in_socket(
-        #     self.held_pos, 
-        #     self.fixed_pos,
-        #     self.disassembly_dist,
-        #     self.keypoints_held,
-        #     self.keypoints_fixed,
-        #     self.cfg_task.close_error_thresh,
-        #     self.episode_length_buf
-        # )
-        # rew_dict['curr_engaged'] = curr_engaged.clone().float()
-
-        rew_buf = rew_dict['sdf'] + rew_dict['imitation'] + rew_dict['curr_successes']
+        rew_buf = self.cfg_task.sdf_rwd_scale * rew_dict['sdf'] + self.cfg_task.imitation_rwd_scale * rew_dict['imitation'] + rew_dict['curr_successes']
 
         for rew_name, rew in rew_dict.items():
             self.extras[f'logs_rew_{rew_name}'] = rew.mean()
@@ -832,11 +821,12 @@ class AssemblyEnv(DirectRLEnv):
 
         #  Close hand
         # Set gains to use for quick resets.
-        reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
-            (self.num_envs, 1)
-        )
-        reset_rot_deriv_scale = self.cfg.ctrl.reset_rot_deriv_scale
-        self._set_gains(reset_task_prop_gains, reset_rot_deriv_scale)
+        # reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
+        #     (self.num_envs, 1)
+        # )
+        # reset_rot_deriv_scale = self.cfg.ctrl.reset_rot_deriv_scale
+        # self._set_gains(reset_task_prop_gains, reset_rot_deriv_scale)
+        self._set_gains(self.default_gains)
 
         self.step_sim_no_action()
 

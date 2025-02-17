@@ -49,7 +49,7 @@ class CtrlCfg:
 
     reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
     reset_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
-    reset_rot_deriv_scale = 10.0
+    reset_rot_deriv_scale = 1.0
     default_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
 
     # Null space parameters.
