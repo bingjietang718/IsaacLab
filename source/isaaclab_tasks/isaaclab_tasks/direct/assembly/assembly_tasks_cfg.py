@@ -1,5 +1,5 @@
 import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg
+from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
@@ -64,8 +64,8 @@ class AssemblyTask:
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
 
-    palm_to_finger_dist: float = 0.1034
-    # palm_to_finger_dist: float = 0.1234
+    # palm_to_finger_dist: float = 0.1034
+    palm_to_finger_dist: float = 0.1134
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.015]  # Relative to fixed asset tip.
@@ -109,15 +109,10 @@ class AssemblyTask:
     num_mesh_sample_points: int = 1000
 
     # Imitation reward
-<<<<<<< HEAD
     imitation_rwd_scale: float = 1.0
     soft_dtw_gamma: float = 0.01 # set to 0 if want to use the original DTW without any smoothing
     num_point_robot_traj: int = 10 # number of waypoints included in the end-effector trajectory
     
-=======
-    soft_dtw_gamma: float = 0.01 # set to 0 if want to use the original DTW without any smoothing
-    num_point_robot_traj: int = 10 # number of waypoints included in the end-effector trajectory
->>>>>>> ad55be42a42cf666af0eb26da4276a59e3060f2a
     # SBC
     initial_max_disp: float = 0.01  # max initial downward displacement of plug at beginning of curriculum
     curriculum_success_thresh: float = 0.8  # success rate threshold for increasing curriculum difficulty
@@ -127,7 +122,7 @@ class AssemblyTask:
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
 
-    if_sbc: bool = True 
+    if_sbc: bool = False 
 
 
 @configclass
@@ -150,7 +145,9 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '00731'
+    # assembly_id = '00731'
+    # assembly_id = '00015'
+    assembly_id = '00081'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()
@@ -192,6 +189,7 @@ class Insertion(AssemblyTask):
     close_error_thresh: float = 0.015
 
     fixed_asset: ArticulationCfg = ArticulationCfg(
+    # fixed_asset: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/FixedAsset",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{assembly_dir}{fixed_asset_cfg.usd_path}',
@@ -209,6 +207,7 @@ class Insertion(AssemblyTask):
                 max_contact_impulse=1e32,
             ),
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                enabled_self_collisions=True,
                 fix_root_link=True, # add this so the fixed asset is set to have a fixed base
             ),
             mass_props=sim_utils.MassPropertiesCfg(mass=fixed_asset_cfg.mass),
@@ -218,6 +217,7 @@ class Insertion(AssemblyTask):
             ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
+        # init_state=RigidObjectCfg.InitialStateCfg(
             pos=(0.6, 0.0, 0.05),
             rot=(1.0, 0.0, 0.0, 0.0),
             joint_pos={},
@@ -225,7 +225,8 @@ class Insertion(AssemblyTask):
         ),
         actuators={}
     )
-    held_asset: ArticulationCfg = ArticulationCfg(
+    # held_asset: ArticulationCfg = ArticulationCfg(
+    held_asset: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/HeldAsset",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{assembly_dir}{held_asset_cfg.usd_path}',
@@ -248,11 +249,12 @@ class Insertion(AssemblyTask):
                 rest_offset=0.0
             ),
         ),
-        init_state=ArticulationCfg.InitialStateCfg(
+        # init_state=ArticulationCfg.InitialStateCfg(
+        init_state=RigidObjectCfg.InitialStateCfg(
             pos=(0.0, 0.4, 0.1),
             rot=(1.0, 0.0, 0.0, 0.0),
-            joint_pos={},
-            joint_vel={}
+            # joint_pos={},
+            # joint_vel={}
         ),
-        actuators={}
+        # actuators={}
     )

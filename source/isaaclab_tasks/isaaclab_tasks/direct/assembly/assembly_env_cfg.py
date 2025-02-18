@@ -44,13 +44,16 @@ class CtrlCfg:
     pos_action_bounds = [0.1, 0.1, 0.1]
     rot_action_bounds = [0.01, 0.01, 0.01]
 
-    pos_action_threshold = [0.02, 0.02, 0.02]
+    pos_action_threshold = [0.01, 0.01, 0.01]
     rot_action_threshold = [0.01, 0.01, 0.01]
 
     reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
     reset_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
-    reset_rot_deriv_scale = 1.0
-    default_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
+    # reset_rot_deriv_scale = 1.0
+    # default_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
+    # reset_task_prop_gains = [300, 300, 300, 20, 20, 20]
+    reset_rot_deriv_scale = 10.0
+    default_task_prop_gains = [100, 100, 100, 30, 30, 30]
 
     # Null space parameters.
     default_dof_pos_tensor = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
@@ -181,14 +184,11 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
             ),
             "panda_hand": ImplicitActuatorCfg(
                 joint_names_expr=["panda_finger_joint[1-2]"],
-                # effort_limit=40.0,
-                effort_limit=200.0,
+                effort_limit=40.0,
                 velocity_limit=0.04,
-                # stiffness=7500.0,
-                stiffness=10000.0,
+                stiffness=7500.0,
                 damping=173.0,
                 friction=0.1,
-                # friction=1.0,
                 armature=0.0,
             ),
         },

@@ -5,7 +5,7 @@ import carb
 import isaacsim.core.utils.torch as torch_utils
 
 import isaaclab.sim as sim_utils
-from isaaclab.assets import Articulation
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import DirectRLEnv
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
@@ -36,12 +36,17 @@ class AssemblyEnv(DirectRLEnv):
         self._set_default_dynamics_parameters()
         self._compute_intermediate_values(dt=self.physics_dt)
 
+        # Load asset meshes in warp for SDF-based dense reward 
         wp.init()
         self.wp_device = wp.get_preferred_device()
         self.plug_mesh, self.plug_sample_points, self.socket_mesh = industreal_algo.load_asset_mesh_in_warp(self.cfg_task.assembly_dir+self.cfg_task.held_asset_cfg.obj_path, 
                                                                                                             self.cfg_task.assembly_dir+self.cfg_task.fixed_asset_cfg.obj_path, 
                                                                                                             self.cfg_task.num_mesh_sample_points, 
                                                                                                             self.wp_device)
+        
+        # # Get the gripper open width based on plug object bounding box
+        # self.gripper_open_width = 
+        
         # Create criterion for dynamic time warping (later used for imitation reward)
         self.soft_dtw_criterion = SoftDTW(use_cuda=True, gamma=self.cfg_task.soft_dtw_gamma)
 
@@ -231,14 +236,18 @@ class AssemblyEnv(DirectRLEnv):
 
         self._robot = Articulation(self.cfg.robot)
         self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
-        self._held_asset = Articulation(self.cfg_task.held_asset)
+        # self._held_asset = Articulation(self.cfg_task.held_asset)
+        # self._fixed_asset = RigidObject(self.cfg_task.fixed_asset)
+        self._held_asset = RigidObject(self.cfg_task.held_asset)
 
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions()
 
         self.scene.articulations["robot"] = self._robot
         self.scene.articulations["fixed_asset"] = self._fixed_asset
-        self.scene.articulations["held_asset"] = self._held_asset
+        # self.scene.articulations["held_asset"] = self._held_asset
+        # self.scene.rigid_objects["fixed_asset"] = self._fixed_asset
+        self.scene.rigid_objects["held_asset"] = self._held_asset
 
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
@@ -694,7 +703,8 @@ class AssemblyEnv(DirectRLEnv):
     def _set_franka_to_default_pose(self, joints, env_ids):
         """ Return Franka to its default joint position. """
         # gripper_width = self.cfg_task.held_asset_cfg.diameter / 2 * 1.25
-        gripper_width = self.cfg_task.hand_width_max
+        gripper_width = self.cfg_task.hand_width_max / 3.0
+        # gripper_width = 0.02
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_pos[:, 7:] = gripper_width  # MIMIC
         joint_pos[:, :7] = torch.tensor(joints, device=self.device)[None, :]
@@ -821,18 +831,18 @@ class AssemblyEnv(DirectRLEnv):
 
         #  Close hand
         # Set gains to use for quick resets.
-        # reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
-        #     (self.num_envs, 1)
-        # )
-        # reset_rot_deriv_scale = self.cfg.ctrl.reset_rot_deriv_scale
-        # self._set_gains(reset_task_prop_gains, reset_rot_deriv_scale)
-        self._set_gains(self.default_gains)
+        reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
+            (self.num_envs, 1)
+        )
+        reset_rot_deriv_scale = self.cfg.ctrl.reset_rot_deriv_scale
+        self._set_gains(reset_task_prop_gains, reset_rot_deriv_scale)
 
         self.step_sim_no_action()
 
         grasp_time = 0.0
-        while grasp_time < 0.50:
-            # self.ctrl_target_joint_pos[env_ids, 7:] = 0.0  # Close gripper.
+        while grasp_time < 0.25:
+            self.ctrl_target_joint_pos[env_ids, 7:] = 0.0  # Close gripper.
+            self.ctrl_target_gripper_dof_pos = 0.0
             self.move_gripper_in_place(ctrl_target_gripper_dof_pos=0.0)
             self.step_sim_no_action()
             grasp_time += self.sim.get_physics_dt()
