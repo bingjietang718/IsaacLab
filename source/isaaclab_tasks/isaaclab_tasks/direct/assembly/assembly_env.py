@@ -44,8 +44,8 @@ class AssemblyEnv(DirectRLEnv):
                                                                                                             self.cfg_task.num_mesh_sample_points, 
                                                                                                             self.wp_device)
         
-        # # Get the gripper open width based on plug object bounding box
-        # self.gripper_open_width = 
+        # Get the gripper open width based on plug object bounding box
+        self.gripper_open_width = automate_algo.get_gripper_open_width(self.cfg_task.assembly_dir+self.cfg_task.held_asset_cfg.obj_path)
         
         # Create criterion for dynamic time warping (later used for imitation reward)
         self.soft_dtw_criterion = SoftDTW(use_cuda=True, gamma=self.cfg_task.soft_dtw_gamma)
@@ -703,8 +703,8 @@ class AssemblyEnv(DirectRLEnv):
     def _set_franka_to_default_pose(self, joints, env_ids):
         """ Return Franka to its default joint position. """
         # gripper_width = self.cfg_task.held_asset_cfg.diameter / 2 * 1.25
-        gripper_width = self.cfg_task.hand_width_max / 3.0
-        # gripper_width = 0.02
+        # gripper_width = self.cfg_task.hand_width_max / 3.0
+        gripper_width = self.gripper_open_width
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_pos[:, 7:] = gripper_width  # MIMIC
         joint_pos[:, :7] = torch.tensor(joints, device=self.device)[None, :]

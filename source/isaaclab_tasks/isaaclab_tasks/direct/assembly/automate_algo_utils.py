@@ -1,8 +1,6 @@
 import numpy as np
-# from pysdf import SDF
 import torch
 import trimesh
-# from urdfpy import URDF
 import warp as wp
 
 import os
@@ -12,6 +10,13 @@ base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__
 sys.path.append(base_dir)
 
 from soft_dtw_cuda import SoftDTW
+
+def get_gripper_open_width(obj_filepath):
+
+    obj_mesh = trimesh.load_mesh(obj_filepath)
+    aabb = obj_mesh.bounds
+
+    return (aabb[1][1]-aabb[0][1]) / 1.5
 
 def get_closest_state_idx(ref_traj, curr_ee_pos):
     """Find the index of the closest state in reference trajectory."""
