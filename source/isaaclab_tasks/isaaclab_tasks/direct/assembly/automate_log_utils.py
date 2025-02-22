@@ -1,4 +1,5 @@
 import h5py
+import wandb
 
 def write_log_to_hdf5(
     held_asset_pose_log,

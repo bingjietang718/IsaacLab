@@ -15,6 +15,8 @@ from . import factory_control as fc
 from .assembly_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
 
 import json
+import wandb
+from datetime import datetime
 import warp as wp
 from . import industreal_algo_utils as industreal_algo
 from . import automate_algo_utils as automate_algo
@@ -55,6 +57,11 @@ class AssemblyEnv(DirectRLEnv):
         # Evaluate 
         if self.cfg_task.if_logging_eval:
             self._init_eval_logging()
+
+        wandb.init(
+            project="assembly", 
+            name=self.cfg_task.assembly_id+'_'+datetime.now().strftime("%m/%d/%Y")
+        )
 
     def _init_eval_logging(self):
 
@@ -544,9 +551,12 @@ class AssemblyEnv(DirectRLEnv):
 
         rew_buf = self._update_rew_buf(curr_successes)
 
+        wandb.log(self.extras)
+
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):
             self.extras["successes"] = torch.count_nonzero(curr_successes) / self.num_envs
+            wandb.log({'success': self.extras["successes"]})
 
             if self.cfg_task.if_sbc:
             
@@ -581,6 +591,8 @@ class AssemblyEnv(DirectRLEnv):
                         self.eval_logging_filename
                     )
                     exit(0)
+
+            
 
         self.prev_actions = self.actions.clone()
         return rew_buf
