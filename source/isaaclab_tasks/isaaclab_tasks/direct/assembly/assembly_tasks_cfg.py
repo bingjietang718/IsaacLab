@@ -79,7 +79,6 @@ class AssemblyTask:
     # Fixed Asset (applies to all tasks)
     fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
     fixed_asset_init_orn_deg: float = 0.0
-    # fixed_asset_init_orn_range_deg: float = 360.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
@@ -124,6 +123,10 @@ class AssemblyTask:
 
     if_sbc: bool = False 
 
+    # Logging evaluation results
+    if_logging_eval: bool = True
+    num_eval_trials: int = 32
+    eval_filename: str = 'evaluation.h5'
 
 @configclass
 class Peg8mm(HeldAssetCfg):

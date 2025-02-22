@@ -18,12 +18,14 @@ import json
 import warp as wp
 from . import industreal_algo_utils as industreal_algo
 from . import automate_algo_utils as automate_algo
+from . import automate_log_utils as automate_log
 from soft_dtw_cuda import SoftDTW
 
 class AssemblyEnv(DirectRLEnv):
     cfg: AssemblyEnvCfg
 
     def __init__(self, cfg: AssemblyEnvCfg, render_mode: str | None = None, **kwargs):
+        
         # Update number of obs/states
         cfg.observation_space = sum([OBS_DIM_CFG[obs] for obs in cfg.obs_order])
         cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
@@ -49,6 +51,20 @@ class AssemblyEnv(DirectRLEnv):
         
         # Create criterion for dynamic time warping (later used for imitation reward)
         self.soft_dtw_criterion = SoftDTW(use_cuda=True, gamma=self.cfg_task.soft_dtw_gamma)
+
+        # Evaluate 
+        if self.cfg_task.if_logging_eval:
+            self._init_eval_logging()
+
+    def _init_eval_logging(self):
+
+        self.eval_logging_filename = self.cfg_task.assembly_dir+self.cfg_task.eval_filename
+        self.held_asset_pose_log = torch.empty((0, 7), dtype=torch.float32, device=self.device) # (position, quaternion)
+        self.fixed_asset_pose_log = torch.empty((0, 7), dtype=torch.float32, device=self.device)
+        self.success_log = torch.empty((0, 1), dtype=torch.float32, device=self.device)
+
+        # Turn off SBC during evaluation so all plugs are initialized outside of the socket
+        self.cfg_task.if_sbc = False
 
     def _set_body_inertias(self):
         """ Note: this is to account for the asset_options.armature parameter in IGE. """
@@ -332,9 +348,9 @@ class AssemblyEnv(DirectRLEnv):
 
     def _get_observations(self):
         """ Get actor/critic inputs using assymetric critic. """
-        noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
+        # noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
 
-        prev_actions = self.actions.clone()
+        # prev_actions = self.actions.clone()
 
         obs_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
@@ -549,6 +565,23 @@ class AssemblyEnv(DirectRLEnv):
 
             self.extras["curr_max_disp"] = self.curr_max_disp
 
+            if self.cfg_task.if_logging_eval:
+                self.success_log = torch.cat(
+                        [
+                            self.success_log, 
+                            curr_successes.reshape((self.num_envs, 1))
+                        ], 
+                    dim=0)
+
+                if self.success_log.shape[0] >= self.cfg_task.num_eval_trials:
+                    automate_log.write_log_to_hdf5(
+                        self.held_asset_pose_log,
+                        self.fixed_asset_pose_log,
+                        self.success_log,
+                        self.eval_logging_filename
+                    )
+                    exit(0)
+
         self.prev_actions = self.actions.clone()
         return rew_buf
 
@@ -602,6 +635,20 @@ class AssemblyEnv(DirectRLEnv):
         self.step_sim_no_action()
 
         self.randomize_initial_state(env_ids)
+
+        if self.cfg_task.if_logging_eval:
+            self.held_asset_pose_log = torch.cat(
+                    [
+                        self.held_asset_pose_log, 
+                        torch.cat([self.held_pos, self.held_quat], dim=1)
+                    ], 
+                dim=0)
+            self.fixed_asset_pose_log = torch.cat(
+                    [
+                        self.fixed_asset_pose_log, 
+                        torch.cat([self.fixed_pos, self.fixed_quat], dim=1)
+                    ], 
+                dim=0)
 
         prev_fingertip_midpoint_pos = (self.fingertip_midpoint_pos-self.gripper_goal_pos).unsqueeze(1) # (num_envs, 1, 3)
         self.prev_fingertip_midpoint_pos = torch.repeat_interleave(prev_fingertip_midpoint_pos, 
@@ -829,7 +876,7 @@ class AssemblyEnv(DirectRLEnv):
 
         self.randomize_held_initial_state(env_ids, pre_grasp=False)
 
-        #  Close hand
+        # Close hand
         # Set gains to use for quick resets.
         reset_task_prop_gains = torch.tensor(self.cfg.ctrl.reset_task_prop_gains, device=self.device).repeat(
             (self.num_envs, 1)
