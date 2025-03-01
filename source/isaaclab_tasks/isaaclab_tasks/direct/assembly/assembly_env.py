@@ -556,7 +556,6 @@ class AssemblyEnv(DirectRLEnv):
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):
             self.extras["successes"] = torch.count_nonzero(curr_successes) / self.num_envs
-            wandb.log({'success': self.extras["successes"]})
 
             if self.cfg_task.if_sbc:
             
@@ -575,6 +574,12 @@ class AssemblyEnv(DirectRLEnv):
 
             self.extras["curr_max_disp"] = self.curr_max_disp
 
+            wandb.log({
+                'success': torch.mean(curr_successes.float()),
+                'reward': torch.mean(rew_buf)
+                }
+            )
+
             if self.cfg_task.if_logging_eval:
                 self.success_log = torch.cat(
                         [
@@ -591,8 +596,6 @@ class AssemblyEnv(DirectRLEnv):
                         self.eval_logging_filename
                     )
                     exit(0)
-
-            
 
         self.prev_actions = self.actions.clone()
         return rew_buf

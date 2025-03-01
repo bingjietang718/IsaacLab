@@ -18,9 +18,10 @@ def load_log_from_hdf5(eval_logging_filename, device):
     with h5py.File(eval_logging_filename, 'r') as hf:
         held_asset_pose = hf['held_asset_pose'][:]    
         fixed_asset_pose = hf['fixed_asset_pose'][:]
-        # success = hf['success'][:]
+        success = hf['success'][:]
         
     held_asset_pose = torch.from_numpy(held_asset_pose, device=device)
     fixed_asset_pose = torch.from_numpy(fixed_asset_pose, device=device)
-    # held_asset_pose = torch.from_numpy(held_asset_pose, device=device)
-    return held_asset_pose, fixed_asset_pose
+    success = torch.from_numpy(success, device=device)
+    
+    return held_asset_pose, fixed_asset_pose, success
