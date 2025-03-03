@@ -121,12 +121,12 @@ class AssemblyTask:
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
 
-    if_sbc: bool = True 
+    if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 32
-    eval_filename: str = 'evaluation.h5'
+    eval_filename: str = 'evaluation_00768.h5'
 
 @configclass
 class Peg8mm(HeldAssetCfg):

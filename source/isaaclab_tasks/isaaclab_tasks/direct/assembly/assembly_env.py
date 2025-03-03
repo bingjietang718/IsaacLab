@@ -550,22 +550,25 @@ class AssemblyEnv(DirectRLEnv):
         )
 
         rew_buf = self._update_rew_buf(curr_successes)
+        self.ep_succeeded = torch.logical_or(self.ep_succeeded, curr_successes)
 
         wandb.log(self.extras)
 
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):
-            self.extras["successes"] = torch.count_nonzero(curr_successes) / self.num_envs
+            self.extras["successes"] = torch.count_nonzero(self.ep_succeeded) / self.num_envs
 
             if self.cfg_task.if_sbc:
             
-                rew_buf *= automate_algo.get_curriculum_reward_scale(
+                sbc_rwd_scale = automate_algo.get_curriculum_reward_scale(
                     curr_max_disp=self.curr_max_disp,
                     curriculum_height_bound=self.curriculum_height_bound,
                 )
 
+                rew_buf *= sbc_rwd_scale
+
                 self.curr_max_disp = automate_algo.get_new_max_disp(
-                    curr_success=torch.count_nonzero(curr_successes) / self.num_envs,
+                    curr_success=torch.count_nonzero(self.ep_succeeded) / self.num_envs,
                     cfg_task=self.cfg_task,
                     curriculum_height_bound=self.curriculum_height_bound, 
                     curriculum_height_step=self.curriculum_height_step,
@@ -575,8 +578,9 @@ class AssemblyEnv(DirectRLEnv):
             self.extras["curr_max_disp"] = self.curr_max_disp
 
             wandb.log({
-                'success': torch.mean(curr_successes.float()),
-                'reward': torch.mean(rew_buf)
+                'success': torch.mean(self.ep_succeeded.float()),
+                'reward': torch.mean(rew_buf),
+                'sbc_rwd_scale': sbc_rwd_scale
                 }
             )
 
@@ -584,7 +588,7 @@ class AssemblyEnv(DirectRLEnv):
                 self.success_log = torch.cat(
                         [
                             self.success_log, 
-                            curr_successes.reshape((self.num_envs, 1))
+                            self.ep_succeeded.reshape((self.num_envs, 1))
                         ], 
                     dim=0)
 
