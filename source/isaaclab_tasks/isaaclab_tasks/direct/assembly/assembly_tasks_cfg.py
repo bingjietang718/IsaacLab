@@ -125,8 +125,12 @@ class AssemblyTask:
 
     # Logging evaluation results
     if_logging_eval: bool = False
-    num_eval_trials: int = 32
-    eval_filename: str = 'evaluation_00768.h5'
+    num_eval_trials: int = 1000
+    eval_filename: str = 'evaluation_01041.h5'
+
+    # Fine-tuning
+    sample_from: str = 'gp' # gp, gmm, idv, rand
+    num_gp_candidates: int = 1000
 
 @configclass
 class Peg8mm(HeldAssetCfg):
@@ -148,7 +152,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '00768'
+    assembly_id = '01041'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()

@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--cfg_path", type=str, help="Path to the file containing assembly_id.", default="source/isaaclab_tasks/isaaclab_tasks/direct/assembly/assembly_tasks_cfg.py")
     parser.add_argument("--assembly_id", type=str, help="New assembly ID to set.")
     parser.add_argument("--checkpoint", type=str, help="Checkpoint path.")
-    parser.add_argument("--num_envs", type=int, default=32, help="Number of parallel environment.")
+    parser.add_argument("--num_envs", type=int, default=128, help="Number of parallel environment.")
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
@@ -58,13 +58,13 @@ def main():
     bash_command = None
     if args.train:
         bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/train.py --task=Assembly-Direct-v0"
+        bash_command += f" --seed={str(args.seed)}"
     else:
         if not args.checkpoint: 
             raise ValueError('No checkpoint provided for evaluation.')
         bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/play.py --task=Assembly-Direct-v0"
     
     bash_command += f" --num_envs={str(args.num_envs)}"
-    bash_command += f" --seed={str(args.seed)}"
 
     if args.checkpoint:
         bash_command += f" --checkpoint={args.checkpoint}"

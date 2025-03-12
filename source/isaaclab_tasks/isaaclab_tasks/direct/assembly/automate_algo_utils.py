@@ -5,15 +5,18 @@ import warp as wp
 
 import os
 import sys
+print("Python Executable:", sys.executable)
+print("Python Path:", sys.path)
+
+from sklearn.mixture import GaussianMixture
+from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from scipy.stats import norm
 
 base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 sys.path.append(base_dir)
 
 from soft_dtw_cuda import SoftDTW
-# from sklearn.mixture import GaussianMixture
-# from sklearn.gaussian_process import GaussianProcessClassifier
-# from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-# from scipy.stats import norm
 
 """
 Initialization / Sampling
@@ -135,12 +138,16 @@ def model_succ_w_gp(
 
     # Flatten success array from (N, 1) to (N,)
     y = success.ravel()
+    # print(y)
+    # print(np.bincount(y.astype(int)))
+    # exit(0)
 
     # Define a kernel: an RBF kernel to capture smooth variations and a WhiteKernel for noise
     kernel = 1.0 * RBF(length_scale=1.0) + WhiteKernel(noise_level=1e-3)
 
     # Create and fit the Gaussian Process Classifier
-    gp = GaussianProcessClassifier(kernel=kernel, random_state=42)
+    # gp = GaussianProcessClassifier(kernel=kernel, random_state=42)
+    gp =  GaussianProcessRegressor()
     gp.fit(relative_position, y)
 
     return gp
@@ -176,6 +183,7 @@ def propose_failure_samples_batch_from_gp(
     """
     # Obtain the predictive mean and standard deviation for each candidate point.
     mu, sigma = gp_model.predict(candidate_points, return_std=True)
+    # mu, sigma = gp_model.predict(candidate_points)
     
     # Compute the acquisition values based on the chosen method.
     if method.lower() == 'ucb':
@@ -200,7 +208,7 @@ def propose_failure_samples_batch_from_gp(
     best_candidates = candidate_points[best_indices]
 
     # Convert the numpy array to a torch tensor.
-    best_candidates_tensor = torch.from_numpy(best_candidates, device=device)
+    best_candidates_tensor = torch.from_numpy(best_candidates).to(device)
     
     return best_candidates_tensor, acquisition
 
