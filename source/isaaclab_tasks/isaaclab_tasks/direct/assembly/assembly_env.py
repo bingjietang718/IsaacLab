@@ -205,9 +205,9 @@ class AssemblyEnv(DirectRLEnv):
 
         # SBC
         if self.cfg_task.if_sbc:
-            self.curr_max_disp = self.cfg_task.initial_max_disp
+            self.curr_max_disp = self.curriculum_height_bound[:, 0]
         else:
-            self.curr_max_disp = self.cfg_task.curriculum_height_bound[0]
+            self.curr_max_disp = self.curriculum_height_bound[:, 1]
 
     def _load_assembly_info(self):
         """Load grasp pose and disassembly distance for plugs in each environment."""
@@ -849,9 +849,9 @@ class AssemblyEnv(DirectRLEnv):
 
     def randomize_held_initial_state(self, env_ids, pre_grasp):
 
-        curr_curriculum_disp_range = self.curr_max_disp - self.cfg_task.curriculum_height_bound[0]
+        curr_curriculum_disp_range = self.curriculum_height_bound[:, 1] - self.curr_max_disp
         if pre_grasp:
-            self.curriculum_disp = self.cfg_task.curriculum_height_bound[0] + curr_curriculum_disp_range * (torch.rand((self.num_envs,), dtype=torch.float32, device=self.device))
+            self.curriculum_disp = self.curr_max_disp + curr_curriculum_disp_range * (torch.rand((self.num_envs,), dtype=torch.float32, device=self.device))
 
             if self.cfg_task.sample_from == 'rand':
                 
@@ -890,13 +890,13 @@ class AssemblyEnv(DirectRLEnv):
         
         # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.height
         # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.base_height 
-        held_state[env_ids, 2] += self.disassembly_dists
-        held_state[env_ids, 2] -= self.curriculum_disp
+        # held_state[env_ids, 2] += self.disassembly_dists
+        held_state[env_ids, 2] += self.curriculum_disp
 
-        plug_partial_insert_idx = torch.argwhere(
-            self.curriculum_disp < 0.0
+        plug_in_freespace_idx = torch.argwhere(
+            self.curriculum_disp > self.disassembly_dists
         )
-        held_state[plug_partial_insert_idx, :2] += self.held_pos_init_rand[plug_partial_insert_idx, :2]
+        held_state[plug_in_freespace_idx, :2] += self.held_pos_init_rand[plug_in_freespace_idx, :2]
 
         self._held_asset.write_root_state_to_sim(held_state)
         self._held_asset.reset()

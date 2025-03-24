@@ -44,7 +44,7 @@ class CtrlCfg:
     pos_action_bounds = [0.1, 0.1, 0.1]
     rot_action_bounds = [0.01, 0.01, 0.01]
 
-    pos_action_threshold = [0.01, 0.01, 0.01]
+    pos_action_threshold = [0.1, 0.1, 0.1]
     rot_action_threshold = [0.01, 0.01, 0.01]
 
     reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
@@ -126,6 +126,7 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
         prim_path="/World/envs/env_.*/Robot",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{ASSET_DIR}/franka_mimic.usd',
+            # usd_path=f'{ASSET_DIR}/automate_franka.usd',
             activate_contact_sensors=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=True,
