@@ -58,24 +58,10 @@ class AssemblyEnv(DirectRLEnv):
         if self.cfg_task.if_logging_eval:
             self._init_eval_logging()
 
-        if self.cfg_task.sample_from != 'rand':
-            self._init_eval_loading()
-
         wandb.init(
             project="assembly", 
             name=self.cfg_task.assembly_id+'_'+datetime.now().strftime("%m/%d/%Y")
         )
-
-    def _init_eval_loading(self):
-        self.eval_logging_filename = self.cfg_task.assembly_dir+self.cfg_task.eval_filename
-        eval_held_asset_pose, eval_fixed_asset_pose, eval_success = automate_log.load_log_from_hdf5(self.eval_logging_filename)
-
-        if self.cfg_task.sample_from == 'gp':
-            self.gp = automate_algo.model_succ_w_gp(eval_held_asset_pose, eval_fixed_asset_pose, eval_success)
-        elif self.cfg_task.sample_from == 'gmm':
-            self.gmm = automate_algo.model_succ_w_gmm(eval_held_asset_pose, eval_fixed_asset_pose, eval_success)
-        # elif self.cfg_task.sample_from == 'idv':
-        # self.cfg_task.if_sbc = False
 
     def _init_eval_logging(self):
 
@@ -205,9 +191,9 @@ class AssemblyEnv(DirectRLEnv):
 
         # SBC
         if self.cfg_task.if_sbc:
-            self.curr_max_disp = self.curriculum_height_bound[:, 0]
+            self.curr_max_disp = self.cfg_task.initial_max_disp
         else:
-            self.curr_max_disp = self.curriculum_height_bound[:, 1]
+            self.curr_max_disp = self.cfg_task.curriculum_height_bound[0]
 
     def _load_assembly_info(self):
         """Load grasp pose and disassembly distance for plugs in each environment."""
@@ -572,14 +558,14 @@ class AssemblyEnv(DirectRLEnv):
         if torch.any(self.reset_buf):
             self.extras["successes"] = torch.count_nonzero(self.ep_succeeded) / self.num_envs
 
-            sbc_rwd_scale = automate_algo.get_curriculum_reward_scale(
+            if self.cfg_task.if_sbc:
+            
+                sbc_rwd_scale = automate_algo.get_curriculum_reward_scale(
                     curr_max_disp=self.curr_max_disp,
                     curriculum_height_bound=self.curriculum_height_bound,
                 )
 
-            rew_buf *= sbc_rwd_scale
-
-            if self.cfg_task.if_sbc:
+                rew_buf *= sbc_rwd_scale
 
                 self.curr_max_disp = automate_algo.get_new_max_disp(
                     curr_success=torch.count_nonzero(self.ep_succeeded) / self.num_envs,
@@ -589,15 +575,21 @@ class AssemblyEnv(DirectRLEnv):
                     curr_max_disp=self.curr_max_disp
                 )
 
+                wandb.log({
+                    'success': torch.mean(self.ep_succeeded.float()),
+                    'reward': torch.mean(rew_buf),
+                    'sbc_rwd_scale': sbc_rwd_scale
+                    }
+                )
+            else:
+                wandb.log({
+                    'success': torch.mean(self.ep_succeeded.float()),
+                    'reward': torch.mean(rew_buf),
+                    }
+                )
+
             self.extras["curr_max_disp"] = self.curr_max_disp
-
-            wandb.log({
-                'success': torch.mean(self.ep_succeeded.float()),
-                'reward': torch.mean(rew_buf),
-                'sbc_rwd_scale': sbc_rwd_scale
-                }
-            )
-
+            
             if self.cfg_task.if_logging_eval:
                 self.success_log = torch.cat(
                         [
@@ -849,37 +841,17 @@ class AssemblyEnv(DirectRLEnv):
 
     def randomize_held_initial_state(self, env_ids, pre_grasp):
 
-        curr_curriculum_disp_range = self.curriculum_height_bound[:, 1] - self.curr_max_disp
+        curr_curriculum_disp_range = self.curr_max_disp - self.cfg_task.curriculum_height_bound[0]
         if pre_grasp:
-            self.curriculum_disp = self.curr_max_disp + curr_curriculum_disp_range * (torch.rand((self.num_envs,), dtype=torch.float32, device=self.device))
+            self.curriculum_disp = self.cfg_task.curriculum_height_bound[0] + curr_curriculum_disp_range * (torch.rand((self.num_envs,), dtype=torch.float32, device=self.device))
 
-            if self.cfg_task.sample_from == 'rand':
-                
-                rand_sample = torch.rand((len(env_ids), 3), dtype=torch.float32, device=self.device)
-                held_pos_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
-                held_asset_init_pos_rand = torch.tensor(
-                    self.cfg_task.held_asset_init_pos_noise,
-                    dtype=torch.float32, device=self.device)
-                self.held_pos_init_rand = held_pos_init_rand @ torch.diag(held_asset_init_pos_rand)
-
-            if self.cfg_task.sample_from == 'gp':
-                rand_sample = torch.rand((self.cfg_task.num_gp_candidates, 3), dtype=torch.float32, device=self.device)
-                held_pos_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
-                held_asset_init_pos_rand = torch.tensor(
-                    self.cfg_task.held_asset_init_pos_noise,
-                    dtype=torch.float32, device=self.device)
-                held_asset_init_candidates = held_pos_init_rand @ torch.diag(held_asset_init_pos_rand)
-                self.held_pos_init_rand, _  = automate_algo.propose_failure_samples_batch_from_gp(
-                                                self.gp, 
-                                                held_asset_init_candidates.cpu().detach().numpy(), 
-                                                len(env_ids),
-                                                self.device)
-                
-                # self.curriculum_disp = self.cfg_task.curriculum_height_bound[0] * torch.ones((self.num_envs,), dtype=torch.float32, device=self.device)
-
-            if self.cfg_task.sample_from == 'gmm':
-                self.held_pos_init_rand = automate_algo.sample_rel_pos_from_gmm(self.gmm, len(env_ids), self.device)
-                # self.curriculum_disp = self.cfg_task.curriculum_height_bound[0] * torch.ones((self.num_envs,), dtype=torch.float32, device=self.device)
+            rand_sample = torch.rand((len(env_ids), 3), dtype=torch.float32, device=self.device)
+            held_pos_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+            held_asset_init_pos_rand = torch.tensor(
+                self.cfg_task.held_asset_init_pos_noise,
+                dtype=torch.float32, device=self.device)
+            self.held_pos_init_rand = held_pos_init_rand @ torch.diag(held_asset_init_pos_rand)
+        # held_state[:, 0:3] += held_pos_init_rand + self.scene.env_origins[env_ids]
 
         # Set plug pos to assembled state, but offset plug Z-coordinate by height of socket,
         # minus curriculum displacement
@@ -890,13 +862,13 @@ class AssemblyEnv(DirectRLEnv):
         
         # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.height
         # held_state[env_ids, 2] += self.cfg_task.fixed_asset_cfg.base_height 
-        # held_state[env_ids, 2] += self.disassembly_dists
-        held_state[env_ids, 2] += self.curriculum_disp
+        held_state[env_ids, 2] += self.disassembly_dists
+        held_state[env_ids, 2] -= self.curriculum_disp
 
-        plug_in_freespace_idx = torch.argwhere(
-            self.curriculum_disp > self.disassembly_dists
+        plug_partial_insert_idx = torch.argwhere(
+            self.curriculum_disp < 0.0
         )
-        held_state[plug_in_freespace_idx, :2] += self.held_pos_init_rand[plug_in_freespace_idx, :2]
+        held_state[plug_partial_insert_idx, :2] += self.held_pos_init_rand[plug_partial_insert_idx, :2]
 
         self._held_asset.write_root_state_to_sim(held_state)
         self._held_asset.reset()
