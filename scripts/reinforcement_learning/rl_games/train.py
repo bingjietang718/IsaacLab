@@ -86,7 +86,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg["params"]["config"]["max_epochs"]
     )
     if args_cli.checkpoint is not None:
-        resume_path = retrieve_file_path(args_cli.checkpoint)
+        checkpoints = args_cli.checkpoint.split('+')
+        resume_paths = [retrieve_file_path(x) for x in checkpoints]
         agent_cfg["params"]["load_checkpoint"] = True
         agent_cfg["params"]["load_path"] = resume_path
         print(f"[INFO]: Loading model checkpoint from: {agent_cfg['params']['load_path']}")
@@ -166,7 +167,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     runner.reset()
     # train the agent
     if args_cli.checkpoint is not None:
-        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_path})
+        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_paths, 'load_mode':'actor'})
     else:
         runner.run({"train": True, "play": False, "sigma": train_sigma})
 
