@@ -17,11 +17,31 @@ gym.register(
 )
 
 gym.register(
+    id="Assembly-Direct-Sil-v0",
+    entry_point="isaaclab_tasks.direct.assembly:AssemblyEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": AssemblyEnvCfg,
+        "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_sil_cfg.yaml",
+    },
+)
+
+gym.register(
     id="Assembly-Sparse-v0",
     entry_point="isaaclab_tasks.direct.assembly:AssemblySparseEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": AssemblyEnvCfg,
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
+    },
+)
+
+gym.register(
+    id="Assembly-Sparse-Sil-v0",
+    entry_point="isaaclab_tasks.direct.assembly:AssemblySparseEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": AssemblyEnvCfg,
+        "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_sil_cfg.yaml",
     },
 )

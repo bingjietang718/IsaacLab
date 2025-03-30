@@ -108,7 +108,7 @@ class AssemblySparseEnv(AssemblyEnv):
 
         # Sparse Reward
         self.ep_succeeded = torch.logical_or(self.ep_succeeded, curr_successes)
-        rew_dict['sparse'] = self.ep_succeeded 
+        rew_dict['sparse'] = self.ep_succeeded.float()
 
         rew_buf = rew_dict['sparse']
 

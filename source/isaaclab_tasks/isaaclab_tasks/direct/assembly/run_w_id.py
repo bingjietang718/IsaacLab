@@ -43,6 +43,8 @@ def main():
     parser.add_argument("--num_envs", type=int, default=128, help="Number of parallel environment.")
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
+    parser.add_argument("--sil", action='store_true', help="Use self-imitation learning.")
+    parser.add_argument("--sparse", action='store_true', help="Use sparse reward.")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
     parser.add_argument("--headless", action='store_true', help="Run in headless mode.")
     args = parser.parse_args()
@@ -55,14 +57,25 @@ def main():
         args.log_eval
         )
 
+    if args.sil:
+        if args.sparse:
+            task = 'Assembly-Sparse-Sil-v0'
+        else:
+            task = 'Assembly-Direct-Sil-v0'
+    else:
+        if args.sparse:
+            task = 'Assembly-Sparse-v0'
+        else:
+            task = 'Assembly-Direct-v0'
+
     bash_command = None
     if args.train:
-        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/train.py --task=Assembly-Direct-v0"
+        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/train.py --task=%s"%task
         bash_command += f" --seed={str(args.seed)}"
     else:
         if not args.checkpoint: 
             raise ValueError('No checkpoint provided for evaluation.')
-        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/play.py --task=Assembly-Direct-v0"
+        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/play.py --task=%s"%task
     
     bash_command += f" --num_envs={str(args.num_envs)}"
 

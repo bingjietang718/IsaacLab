@@ -89,7 +89,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         checkpoints = args_cli.checkpoint.split('+')
         resume_paths = [retrieve_file_path(x) for x in checkpoints]
         agent_cfg["params"]["load_checkpoint"] = True
-        agent_cfg["params"]["load_path"] = resume_path
+        agent_cfg["params"]["load_path"] = resume_paths[0]
         print(f"[INFO]: Loading model checkpoint from: {agent_cfg['params']['load_path']}")
     train_sigma = float(args_cli.sigma) if args_cli.sigma is not None else None
 
@@ -167,9 +167,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     runner.reset()
     # train the agent
     if args_cli.checkpoint is not None:
-        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_paths, 'load_mode':'actor'})
+        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_paths, "load_mode":"actor"})
     else:
-        runner.run({"train": True, "play": False, "sigma": train_sigma})
+        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": None, "load_mode": None})
 
     # close the simulator
     env.close()
