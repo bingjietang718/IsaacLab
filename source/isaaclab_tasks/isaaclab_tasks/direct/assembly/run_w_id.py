@@ -40,20 +40,25 @@ def main():
     parser.add_argument("--cfg_path", type=str, help="Path to the file containing assembly_id.", default="source/isaaclab_tasks/isaaclab_tasks/direct/assembly/assembly_tasks_cfg.py")
     parser.add_argument("--assembly_id", type=str, help="New assembly ID to set.")
     parser.add_argument("--checkpoint", type=str, help="Checkpoint path.")
+    parser.add_argument("--load_mode", type=str, default='actor', help="Load checkpoint for fine-tuning.")
     parser.add_argument("--num_envs", type=int, default=128, help="Number of parallel environment.")
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
     parser.add_argument("--sil", action='store_true', help="Use self-imitation learning.")
     parser.add_argument("--sparse", action='store_true', help="Use sparse reward.")
+    parser.add_argument("--no_sbc", action='store_true', help="Apply curriculum difficulty update")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
     parser.add_argument("--headless", action='store_true', help="Run in headless mode.")
     args = parser.parse_args()
-        
+       
+    if not args.train:
+        args.no_sbc = True
+
     update_task_param(
         args.cfg_path, 
         args.asset_dir,
         args.assembly_id, 
-        args.train, 
+        not args.no_sbc, 
         args.log_eval
         )
 
@@ -70,7 +75,7 @@ def main():
 
     bash_command = None
     if args.train:
-        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/train.py --task=%s"%task
+        bash_command = "./isaaclab.sh -p scripts/reinforcement_learning/rl_games/train.py --task=%s --load_mode=%s"%(task, args.load_mode)
         bash_command += f" --seed={str(args.seed)}"
     else:
         if not args.checkpoint: 

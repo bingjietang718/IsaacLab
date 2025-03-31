@@ -24,6 +24,7 @@ parser.add_argument(
     "--distributed", action="store_true", default=False, help="Run training with multiple GPUs or nodes."
 )
 parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint.")
+parser.add_argument("--load_mode", type=str, default='all', help="Mode to load checkpoint for fine-tuning.")
 parser.add_argument("--sigma", type=str, default=None, help="The policy's initial standard deviation.")
 parser.add_argument("--max_iterations", type=int, default=None, help="RL Policy training iterations.")
 
@@ -167,7 +168,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     runner.reset()
     # train the agent
     if args_cli.checkpoint is not None:
-        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_paths, "load_mode":"actor"})
+        runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": resume_paths, "load_mode":args_cli.load_mode})
     else:
         runner.run({"train": True, "play": False, "sigma": train_sigma, "checkpoint": None, "load_mode": None})
 
