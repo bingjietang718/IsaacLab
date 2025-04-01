@@ -27,7 +27,7 @@ params:
         name: default
       regularizer:
         name: None
-    
+
     rnn:
       name: lstm
       units: 256
@@ -54,32 +54,32 @@ params:
     normalize_advantage: True
     gamma: 0.99
     tau: 0.95
-    learning_rate: 1.0e-4
-    lr_schedule: adaptive
+    learning_rate: 1e-4
+    lr_schedule: fixed
     schedule_type: standard
     kl_threshold: 0.016
     score_to_win: 20000
-    max_epochs: 200
-    save_best_after: 10
-    save_frequency: 100
+    max_epochs: 1000
+    save_best_after: 100
+    save_frequency: 200
     print_stats: True
     grad_norm: 1.0
-    entropy_coef: 0.0  # 0.0001  # 0.0
-    truncate_grads: True
+    entropy_coef: 0.0
+    truncate_grads: False
     e_clip: 0.2
-    horizon_length: 128
-    minibatch_size: 512  # batch size = num_envs * horizon_length; minibatch_size = batch_size / num_minibatches
-    mini_epochs: 4
+    horizon_length: 32
+    minibatch_size: 4096  # batch size = num_envs * horizon_length; minibatch_size = batch_size / num_minibatches
+    mini_epochs: 8
     critic_coef: 2
     clip_value: True
-    seq_length: 128
+    seq_length: 4
     bounds_loss_coef: 0.0001
     central_value_config:
-      minibatch_size: 512
+      minibatch_size: 256
       mini_epochs: 4
-      learning_rate: 1e-4
-      lr_schedule: adaptive
-      kl_threshold: 0.008
+      learning_rate: 1e-3
+      lr_schedule: linear
+      kl_threshold: 0.016
       clip_value: True
       normalize_input: True
       truncate_grads: True
