@@ -109,7 +109,7 @@ def sample_rel_pos_from_gmm(gmm, batch_size, device):
     samples, _ = gmm.sample(batch_size)
 
     # Convert the numpy array to a torch tensor.
-    samples_tensor = torch.from_numpy(samples, device=device)
+    samples_tensor = torch.from_numpy(samples).to(device)
     
     return samples_tensor
 
@@ -270,7 +270,7 @@ def propose_success_samples_batch_from_gp(
     best_candidates = candidate_points[best_indices]
 
     # Convert the numpy array to a torch tensor.
-    best_candidates_tensor = torch.from_numpy(best_candidates, device=device)
+    best_candidates_tensor = torch.from_numpy(best_candidates).to(device)
     
     return best_candidates_tensor, acquisition
 
@@ -368,26 +368,6 @@ def get_imitation_reward_from_dtw(ref_traj, curr_ee_pos, prev_ee_traj, criterion
 """
 Sampling-Based Curriculum (SBC)
 """
-
-def get_curriculum_reward_scale(cfg_task, curr_max_disp):
-    """Compute reward scale for SBC."""
-
-    # Compute difference between max downward displacement at beginning of training (easiest condition)
-    # and current max downward displacement (based on current curriculum stage)
-    # NOTE: This number increases as curriculum gets harder
-    curr_stage_diff = cfg_task.rl.curriculum_height_bound[1] - curr_max_disp
-
-    # Compute difference between max downward displacement at beginning of training (easiest condition)
-    # and min downward displacement (hardest condition)
-    final_stage_diff = (
-        cfg_task.rl.curriculum_height_bound[1] - cfg_task.rl.curriculum_height_bound[0]
-    )
-
-    # Compute reward scale
-    reward_scale = curr_stage_diff / final_stage_diff + 1.0
-
-    return reward_scale
-
 
 def get_new_max_disp(curr_success, cfg_task, curriculum_height_bound, curriculum_height_step, curr_max_disp):
     """Update max downward displacement of plug at beginning of episode, based on success rate."""
@@ -493,103 +473,6 @@ def get_curriculum_reward_scale(curr_max_disp, curriculum_height_bound):
     reward_scale = curr_stage_diff / final_stage_diff + 1.0
 
     return reward_scale.mean()
-
-
-def load_asset_convex_hull_in_warp(urdf_path, device):
-    """Create mesh object in Warp."""
-
-    urdf = URDF.load(urdf_path)
-    mesh = urdf.links[0].collision_mesh
-    convex_hull = trimesh.convex.convex_hull(mesh)
-
-    wp_mesh = wp.Mesh(
-        points=wp.array(convex_hull.vertices, dtype=wp.vec3, device=device),
-        indices=wp.array(convex_hull.faces.flatten(), dtype=wp.int32, device=device),
-    )
-
-    return wp_mesh
-
-def load_asset_convex_hulls_in_warp(plug_files, socket_files, device):
-    """Create mesh objects in Warp for all environments."""
-
-    # Load and store plug meshes
-    plug_meshes = [
-        load_asset_convex_hull_in_warp(
-            urdf_path=plug_files[i],
-            device=device,
-        )
-        for i in range(len(plug_files))
-    ]
-
-    # Load and store socket meshes
-    socket_meshes = [
-        load_asset_convex_hull_in_warp(
-            urdf_path=socket_files[i],
-            device=device,
-        )
-        for i in range(len(socket_files))
-    ]
-
-    return plug_meshes, socket_meshes
-
-def get_max_interpen_dists(
-    asset_indices,
-    plug_pos,
-    plug_quat,
-    socket_pos,
-    socket_quat,
-    wp_plug_meshes,
-    wp_socket_meshes,
-    wp_device,
-    device,
-):
-    """Get maximum interpenetration distances between plugs and sockets."""
-
-    num_envs = len(plug_pos)
-    max_interpen_dists = torch.zeros((num_envs,), dtype=torch.float32, device=device)
-
-    for i in range(num_envs):
-        asset_idx = asset_indices[i]
-
-        # Compute transform from plug frame to socket frame
-        plug_transform = wp.transform(plug_pos[i], plug_quat[i])
-        socket_transform = wp.transform(socket_pos[i], socket_quat[i])
-        socket_inv_transform = wp.transform_inverse(socket_transform)
-        plug_to_socket_transform = wp.transform_multiply(
-            socket_inv_transform, plug_transform
-        )
-
-        # Transform plug mesh vertices to socket frame
-        plug_points = wp.clone(wp_plug_meshes[asset_idx].points)
-        wp.launch(
-            kernel=transform_points,
-            dim=len(plug_points),
-            inputs=[plug_points, plug_points, plug_to_socket_transform],
-            device=wp_device,
-        )
-
-        # Compute max interpenetration distance between plug and socket
-        interpen_dist_plug_socket = wp.zeros(
-            (len(plug_points),), dtype=wp.float32, device=wp_device
-        )
-        wp.launch(
-            kernel=get_interpen_dist,
-            dim=len(plug_points),
-            inputs=[
-                plug_points,
-                wp_socket_meshes[asset_idx].id,
-                interpen_dist_plug_socket,
-            ],
-            device=wp_device,
-        )
-
-        max_interpen_dist = -torch.min(wp.to_torch(interpen_dist_plug_socket))
-
-        # Store interpenetration flag and max interpenetration distance
-        if max_interpen_dist > 0.0:
-            max_interpen_dists[i] = max_interpen_dist
-
-    return max_interpen_dists
 
 
 """
