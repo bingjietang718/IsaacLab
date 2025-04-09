@@ -6,6 +6,7 @@ from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import PhysxCfg, SimulationCfg
 from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
+from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
 
 from .assembly_tasks_cfg import Insertion, ASSET_DIR
@@ -127,7 +128,7 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{ASSET_DIR}/franka_mimic.usd',
             # usd_path=f'{ASSET_DIR}/automate_franka.usd',
-            activate_contact_sensors=True,
+            activate_contact_sensors=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=True,
                 max_depenetration_velocity=5.0,
@@ -194,3 +195,6 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
             ),
         },
     )
+    # contact_sensor: ContactSensorCfg = ContactSensorCfg(
+    #     prim_path="/World/envs/env_.*/Robot/.*", update_period=0.0, history_length=1, debug_vis=True
+    # )

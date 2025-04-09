@@ -3,7 +3,7 @@ from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-ASSET_DIR = '/home/bingjie/Downloads/assembly_asset'
+ASSET_DIR = '/home/bingjie/Downloads/all_assembly_asset'
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -119,14 +119,13 @@ class AssemblyTask:
     curriculum_freespace_range: float = 0.01
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
-    curriculum_height_bound: list = [-0.01, 0.01]  # max initial downward displacement of plug at hardest and easiest stages of curriculum
-
+    
     if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_00015.h5'
+    eval_filename: str = 'evaluation_00768.h5'
 
     # Fine-tuning
     sample_from: str = 'rand' # gp, gmm, idv, rand
@@ -152,7 +151,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '00015'
+    assembly_id = '00768'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()
