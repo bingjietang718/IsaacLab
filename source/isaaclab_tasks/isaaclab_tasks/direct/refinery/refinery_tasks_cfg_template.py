@@ -34,17 +34,12 @@ STATE_DIM_CFG = {
 @configclass
 class FixedAssetCfg:
     usd_path: str = ''
-    diameter: float = 0.0
-    height: float = 0.0
-    base_height: float = 0.0 # Used to compute held asset CoM.
     friction: float = 0.75
     mass: float = 0.05
 
 @configclass
 class HeldAssetCfg:
     usd_path: str = ''
-    diameter: float = 0.0 # Used for gripper width.
-    height: float = 0.0
     friction: float = 0.75
     mass: float = 0.05
 
@@ -64,7 +59,6 @@ class AssemblyTask:
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
 
-    # palm_to_finger_dist: float = 0.1034
     palm_to_finger_dist: float = 0.1134
 
     # Robot
@@ -120,48 +114,58 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = False
+    if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_10000.h5'
+    eval_filename: str = 'evaluation_00768.h5'
 
     # Fine-tuning
     sample_from: str = 'rand' # gp, gmm, idv, rand
     num_gp_candidates: int = 1000
 
 @configclass
-class Peg8mm(HeldAssetCfg):
-    usd_path = 'plug.usd'
-    obj_path = 'plug.obj'
+class HeldAsset(HeldAssetCfg):
+    usd_path = # held asset usd
+    obj_path = # held asset obj
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
-class Hole8mm(FixedAssetCfg):
-    usd_path = 'socket.usd'
-    obj_path = 'socket.obj'
+class FixedAsset(FixedAssetCfg):
+    usd_path = # fixed asset usd
+    obj_path = # fixed asset obj
     diameter = 0.0081
     height = 0.050896
     base_height = 0.0
+
+## start: add assembled asset config classes
+
+## end: add assembled asset config classes
 
 @configclass
 class Insertion(AssemblyTask):
     name = 'insertion'
 
     assembly_id = '10000'
+    step_id = '2'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
-    fixed_asset_cfg = Hole8mm()
-    held_asset_cfg = Peg8mm()
+    fixed_asset_cfg = FixedAsset()
+    held_asset_cfg = HeldAsset()
+    ## start: add assembled asset in task classes
+    
+    ## end: add assembled asset in task classes
+
     asset_size = 8.0
     duration_s = 10.0
 
-    plug_grasp_json = f'{ASSET_DIR}/plug_grasps.json'
-    disassembly_dist_json = f'{ASSET_DIR}/disassembly_dist.json'
-    disassembly_path_json = f'{assembly_dir}/disassemble_traj.json'
+    plug_grasp_path = f'{assembly_dir}/{assembly_id}_{step_id}.out'
+    disassembly_dist_json = f'{assembly_dir}/disassembly_dist.json'
+    disassembly_direction = f'{assembly_dir}/disassembly_direction.json'
+    disassembly_path_json = f'{assembly_dir}/{assembly_id}_{step_id}_disassembly_traj.json'
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.047]  # Relative to fixed asset tip.
@@ -176,7 +180,6 @@ class Insertion(AssemblyTask):
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
-    # held_asset_pos_noise: list = [0.003, 0.0, 0.003]  # noise level of the held asset in gripper
     held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
     held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
@@ -193,7 +196,6 @@ class Insertion(AssemblyTask):
     close_error_thresh: float = 0.015
 
     fixed_asset: ArticulationCfg = ArticulationCfg(
-    # fixed_asset: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/FixedAsset",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{assembly_dir}{fixed_asset_cfg.usd_path}',
@@ -221,7 +223,6 @@ class Insertion(AssemblyTask):
             ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-        # init_state=RigidObjectCfg.InitialStateCfg(
             pos=(0.6, 0.0, 0.05),
             rot=(1.0, 0.0, 0.0, 0.0),
             joint_pos={},
@@ -229,7 +230,11 @@ class Insertion(AssemblyTask):
         ),
         actuators={}
     )
-    # held_asset: ArticulationCfg = ArticulationCfg(
+
+    ## start: add assembled asset articulationcfg
+    
+    ## end: add assembled asset articulationcfg
+
     held_asset: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/HeldAsset",
         spawn=sim_utils.UsdFileCfg(
@@ -247,18 +252,19 @@ class Insertion(AssemblyTask):
                 solver_velocity_iteration_count=1,
                 max_contact_impulse=1e32,
             ),
+            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                articulation_enabled=False,
+                enabled_self_collisions=True,
+                fix_root_link=False, # add this so the fixed asset is set to have a fixed base
+            ),
             mass_props=sim_utils.MassPropertiesCfg(mass=held_asset_cfg.mass),
             collision_props=sim_utils.CollisionPropertiesCfg(
                 contact_offset=0.005,
                 rest_offset=0.0
             ),
         ),
-        # init_state=ArticulationCfg.InitialStateCfg(
         init_state=RigidObjectCfg.InitialStateCfg(
             pos=(0.0, 0.4, 0.1),
             rot=(1.0, 0.0, 0.0, 0.0),
-            # joint_pos={},
-            # joint_vel={}
         ),
-        # actuators={}
     )
