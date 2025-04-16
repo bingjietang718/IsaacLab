@@ -9,7 +9,10 @@ from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMater
 from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
 
-from .assembly_tasks_cfg import Insertion, ASSET_DIR
+from .refinery_tasks_cfg import Insertion, ASSET_DIR
+
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+ROBOT_DIR = f"{ISAACLAB_NUCLEUS_DIR}/Robots/Franka"
 
 OBS_DIM_CFG = {
     'joint_pos': 7,
@@ -50,9 +53,6 @@ class CtrlCfg:
 
     reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]
     reset_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
-    # reset_rot_deriv_scale = 1.0
-    # default_task_prop_gains = [1000, 1000, 1000, 50, 50, 50]
-    # reset_task_prop_gains = [300, 300, 300, 20, 20, 20]
     reset_rot_deriv_scale = 10.0
     default_task_prop_gains = [100, 100, 100, 30, 30, 30]
 
@@ -62,7 +62,7 @@ class CtrlCfg:
     kd_null = 6.3246
 
 @configclass
-class AssemblyEnvCfg(DirectRLEnvCfg):
+class RefineryEnvCfg(DirectRLEnvCfg):
     decimation = 8
     action_space = 6
     # num_*: will be overwritten to correspond to obs_order, state_order.
@@ -95,7 +95,6 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
     obs_rand: ObsRandCfg = ObsRandCfg()
     ctrl: CtrlCfg = CtrlCfg()
 
-    # episode_length_s = 10.0  # Probably need to override.
     episode_length_s = 5.0
     sim: SimulationCfg = SimulationCfg(
         device="cuda:0",
@@ -127,7 +126,7 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
         prim_path="/World/envs/env_.*/Robot",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{ASSET_DIR}/franka_mimic.usd',
-            # usd_path=f'{ASSET_DIR}/automate_franka.usd',
+            # usd_path=f'{ASSET_DIR}/fr3.usd',
             activate_contact_sensors=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=True,
@@ -195,6 +194,3 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
             ),
         },
     )
-    # contact_sensor: ContactSensorCfg = ContactSensorCfg(
-    #     prim_path="/World/envs/env_.*/Robot/.*", update_period=0.0, history_length=1, debug_vis=True
-    # )

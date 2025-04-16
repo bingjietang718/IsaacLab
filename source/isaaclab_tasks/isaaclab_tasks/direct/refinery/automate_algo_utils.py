@@ -5,8 +5,6 @@ import warp as wp
 
 import os
 import sys
-print("Python Executable:", sys.executable)
-print("Python Path:", sys.path)
 
 from sklearn.mixture import GaussianMixture
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
@@ -83,13 +81,13 @@ def model_succ_w_gmm(
     
     # Flatten the success array to serve as sample weights.
     # This way, samples with higher success contribute more to the model.
-    sample_weights = success.flatten()
+    # sample_weights = success.flatten()
     
     # Initialize the Gaussian Mixture Model with the specified number of components.
-    gmm = GaussianMixture(n_components=2, random_state=0)
+    gmm = GaussianMixture(n_components=relative_pos.shape[0])
     
     # Fit the GMM on the relative positions, using sample weights from the success metric.
-    gmm.fit(relative_pos, sample_weight=sample_weights)
+    gmm.fit(relative_pos)
     
     return gmm
 
@@ -138,9 +136,6 @@ def model_succ_w_gp(
 
     # Flatten success array from (N, 1) to (N,)
     y = success.ravel()
-    # print(y)
-    # print(np.bincount(y.astype(int)))
-    # exit(0)
 
     # Define a kernel: an RBF kernel to capture smooth variations and a WhiteKernel for noise
     kernel = 1.0 * RBF(length_scale=1.0) + WhiteKernel(noise_level=1e-3)
@@ -211,9 +206,6 @@ def propose_failure_samples_batch_from_gp(
     best_candidates_tensor = torch.from_numpy(best_candidates).to(device)
     
     return best_candidates_tensor, acquisition
-
-import numpy as np
-from scipy.stats import norm
 
 def propose_success_samples_batch_from_gp(
     gp_model, 
@@ -360,7 +352,6 @@ def get_imitation_reward_from_dtw(ref_traj, curr_ee_pos, prev_ee_traj, criterion
 
     w_task_progress = 1-(min_dist_step_idx / ref_traj.shape[1])
 
-    # imitation_rwd = torch.exp(-soft_dtw)
     imitation_rwd = 1-torch.tanh(soft_dtw)
 
     return imitation_rwd * w_task_progress
