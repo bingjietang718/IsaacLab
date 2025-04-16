@@ -81,13 +81,13 @@ def model_succ_w_gmm(
     
     # Flatten the success array to serve as sample weights.
     # This way, samples with higher success contribute more to the model.
-    sample_weights = success.flatten()
+    # sample_weights = success.flatten()
     
     # Initialize the Gaussian Mixture Model with the specified number of components.
-    gmm = GaussianMixture(n_components=2, random_state=0)
+    gmm = GaussianMixture(n_components=relative_pos.shape[0])
     
     # Fit the GMM on the relative positions, using sample weights from the success metric.
-    gmm.fit(relative_pos, sample_weight=sample_weights)
+    gmm.fit(relative_pos)
     
     return gmm
 
@@ -206,9 +206,6 @@ def propose_failure_samples_batch_from_gp(
     best_candidates_tensor = torch.from_numpy(best_candidates).to(device)
     
     return best_candidates_tensor, acquisition
-
-import numpy as np
-from scipy.stats import norm
 
 def propose_success_samples_batch_from_gp(
     gp_model, 

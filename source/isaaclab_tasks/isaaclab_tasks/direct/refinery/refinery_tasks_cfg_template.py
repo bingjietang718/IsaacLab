@@ -122,8 +122,9 @@ class AssemblyTask:
     eval_filename: str = 'evaluation_00768.h5'
 
     # Fine-tuning
-    sample_from: str = 'rand' # gp, gmm, idv, rand
+    sample_from: str = 'gmm' # gp, gmm, idv, rand
     num_gp_candidates: int = 1000
+    acquisition_function: str = 'ucb' # ucb, pi, ei
 
 @configclass
 class HeldAsset(HeldAssetCfg):

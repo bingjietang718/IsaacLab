@@ -886,7 +886,8 @@ class RefineryEnv(DirectRLEnv):
                                                 self.gp, 
                                                 held_asset_init_candidates.cpu().detach().numpy(), 
                                                 len(env_ids),
-                                                self.device)
+                                                self.device,
+                                                method=self.cfg_task.acquisition_function)
 
             if self.cfg_task.sample_from == 'gmm':
                 self.held_pos_init_rand = automate_algo.sample_rel_pos_from_gmm(self.gmm, len(env_ids), self.device)

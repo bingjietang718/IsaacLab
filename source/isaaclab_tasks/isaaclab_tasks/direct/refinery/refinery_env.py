@@ -283,6 +283,9 @@ class RefineryEnv(DirectRLEnv):
         self._robot = Articulation(self.cfg.robot)
         self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
         ## start: add assembled asset instance
+        self._assembled_asset1 = Articulation(self.cfg_task.assembled_asset1)
+        self._assembled_asset2 = Articulation(self.cfg_task.assembled_asset2)
+        self._assembled_asset3 = Articulation(self.cfg_task.assembled_asset3)
         ## end: add assembled asset instance
         
         self._held_asset = RigidObject(self.cfg_task.held_asset)
@@ -293,6 +296,9 @@ class RefineryEnv(DirectRLEnv):
         self.scene.articulations["robot"] = self._robot
         self.scene.articulations["fixed_asset"] = self._fixed_asset
         ## start: add assembled asset to the scene
+        self.scene.articulations["assembled_asset1"] = self._assembled_asset1
+        self.scene.articulations["assembled_asset2"] = self._assembled_asset2
+        self.scene.articulations["assembled_asset3"] = self._assembled_asset3
         ## end: add assembled asset to the scene
         
         self.scene.rigid_objects["held_asset"] = self._held_asset
@@ -847,6 +853,12 @@ class RefineryEnv(DirectRLEnv):
         self._fixed_asset.reset()
 
         ## start: set assembled parts to be in the same state as fixed_asset
+        self._assembled_asset1.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._assembled_asset1.reset()
+        self._assembled_asset2.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._assembled_asset2.reset()
+        self._assembled_asset3.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._assembled_asset3.reset()
         ## end: set assembled parts to be in the same state as fixed_asset
         
 
@@ -886,7 +898,8 @@ class RefineryEnv(DirectRLEnv):
                                                 self.gp, 
                                                 held_asset_init_candidates.cpu().detach().numpy(), 
                                                 len(env_ids),
-                                                self.device)
+                                                self.device,
+                                                method=self.cfg_task.acquisition_function)
 
             if self.cfg_task.sample_from == 'gmm':
                 self.held_pos_init_rand = automate_algo.sample_rel_pos_from_gmm(self.gmm, len(env_ids), self.device)
