@@ -85,6 +85,7 @@ def model_succ_w_gmm(
     
     # Initialize the Gaussian Mixture Model with the specified number of components.
     gmm = GaussianMixture(n_components=relative_pos.shape[0])
+    # gmm = GaussianMixture(n_components=2)
     
     # Fit the GMM on the relative positions, using sample weights from the success metric.
     gmm.fit(relative_pos)
@@ -105,6 +106,18 @@ def sample_rel_pos_from_gmm(gmm, batch_size, device):
     """
     # Sample batch_size samples from the Gaussian Mixture Model.
     samples, _ = gmm.sample(batch_size)
+
+    # Only select success samples
+    # succ_samples = samples[np.argwhere(y==1), :].squeeze()
+
+    # print(succ_samples)
+    # print(succ_samples.shape)
+    
+    scores = gmm.score_samples(samples)
+
+    max_score_idx = np.argmax(scores)
+
+    selected_samples = np.tile(samples[max_score_idx], (batch_size, 1))
 
     # Convert the numpy array to a torch tensor.
     samples_tensor = torch.from_numpy(samples).to(device)

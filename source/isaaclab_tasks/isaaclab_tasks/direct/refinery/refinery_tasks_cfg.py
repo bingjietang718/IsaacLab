@@ -124,7 +124,7 @@ class AssemblyTask:
     # Fine-tuning
     sample_from: str = 'gmm'
     num_gp_candidates: int = 1000
-    acquisition_function: str = 'ei'
+    acquisition_function: str = 'ucb'
 
 @configclass
 class HeldAsset(HeldAssetCfg):

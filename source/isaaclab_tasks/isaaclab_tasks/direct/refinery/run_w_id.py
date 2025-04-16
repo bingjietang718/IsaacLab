@@ -382,7 +382,7 @@ def main():
         bash_command += " --headless"
 
     # Run the bash command
-    # subprocess.run(bash_command, shell=True, check=True)
+    subprocess.run(bash_command, shell=True, check=True)
 
 if __name__ == "__main__":
     main()
