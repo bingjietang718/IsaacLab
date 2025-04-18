@@ -71,7 +71,7 @@ class AssemblyEnv(DirectRLEnv):
         
         wandb_log_name = datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+"_"+str(torch.seed())
 
-        self.checkpoint_name = "assembly_"+datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+".pth"
+        # self.checkpoint_name = "assembly_"+datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+".pth"
 
         wandb.init(
             project=wandb_proj, 
@@ -580,7 +580,7 @@ class AssemblyEnv(DirectRLEnv):
 
         wandb.log(self.extras)
 
-        wandb.save(os.path.join(wandb.run.dir, self.checkpoint_name))
+        # wandb.save(os.path.join(wandb.run.dir, self.checkpoint_name))
 
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):
