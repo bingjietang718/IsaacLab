@@ -1,6 +1,7 @@
 import argparse
 import re
 import subprocess
+from datetime import datetime
 
 def update_task_param(task_cfg, asset_dir, assembly_id, if_sbc, if_log_eval):
     # Read the file lines.
@@ -71,6 +72,10 @@ def main():
 
     if args.headless:
         bash_command += " --headless"
+
+    date_str = datetime.now().strftime("%m_%d_%Y")
+    run_name = f"automate_{date_str}_{args.assembly_id}"
+    bash_command += f" agent.params.config.name={run_name}"
 
     # Run the bash command
     subprocess.run(bash_command, shell=True, check=True)

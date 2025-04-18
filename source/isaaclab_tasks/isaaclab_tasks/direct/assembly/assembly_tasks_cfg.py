@@ -120,12 +120,12 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = False
+    if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_10000.h5'
+    eval_filename: str = 'evaluation_00768.h5'
 
     # Fine-tuning
     sample_from: str = 'rand' # gp, gmm, idv, rand
@@ -151,7 +151,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '10000'
+    assembly_id = '00768'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()
