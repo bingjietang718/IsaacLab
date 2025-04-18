@@ -288,6 +288,7 @@ class RefineryEnv(DirectRLEnv):
         self._assembled_asset1 = Articulation(self.cfg_task.assembled_asset1)
         self._assembled_asset2 = Articulation(self.cfg_task.assembled_asset2)
         self._assembled_asset3 = Articulation(self.cfg_task.assembled_asset3)
+        self._assembled_asset4 = Articulation(self.cfg_task.assembled_asset4)
         ## end: add assembled asset instance
         
         self._held_asset = RigidObject(self.cfg_task.held_asset)
@@ -301,6 +302,7 @@ class RefineryEnv(DirectRLEnv):
         self.scene.articulations["assembled_asset1"] = self._assembled_asset1
         self.scene.articulations["assembled_asset2"] = self._assembled_asset2
         self.scene.articulations["assembled_asset3"] = self._assembled_asset3
+        self.scene.articulations["assembled_asset4"] = self._assembled_asset4
         ## end: add assembled asset to the scene
         
         self.scene.rigid_objects["held_asset"] = self._held_asset
@@ -861,6 +863,8 @@ class RefineryEnv(DirectRLEnv):
         self._assembled_asset2.reset()
         self._assembled_asset3.write_root_state_to_sim(fixed_state, env_ids=env_ids)
         self._assembled_asset3.reset()
+        self._assembled_asset4.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._assembled_asset4.reset()
         ## end: set assembled parts to be in the same state as fixed_asset
         
 

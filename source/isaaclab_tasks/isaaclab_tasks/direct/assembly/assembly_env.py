@@ -61,9 +61,21 @@ class AssemblyEnv(DirectRLEnv):
         if self.cfg_task.sample_from != 'rand':
             self._init_eval_loading()
 
+        wandb_proj = "assembly"
+        if not self.cfg_task.if_sbc:
+            wandb_proj += "_eval"
+        if self.cfg_task.sample_from == "gp":
+            wandb_proj += "_gp"
+        if self.cfg_task.sample_from == "gmm":
+            wandb_proj += "_gmm"
+        
+        wandb_log_name = datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+"_"+str(torch.seed())
+
+        self.checkpoint_name = "assembly_"+datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+".pth"
+
         wandb.init(
-            project="assembly", 
-            name=self.cfg_task.assembly_id+'_'+datetime.now().strftime("%m/%d/%Y")
+            project=wandb_proj, 
+            name=wandb_log_name
         )
 
     def _init_eval_loading(self):
@@ -567,6 +579,8 @@ class AssemblyEnv(DirectRLEnv):
         self.ep_succeeded = torch.logical_or(self.ep_succeeded, curr_successes)
 
         wandb.log(self.extras)
+
+        wandb.save(os.path.join(wandb.run.dir, self.checkpoint_name))
 
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):

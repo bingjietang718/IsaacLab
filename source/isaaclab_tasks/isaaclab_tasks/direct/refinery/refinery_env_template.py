@@ -63,10 +63,19 @@ class RefineryEnv(DirectRLEnv):
         if self.cfg_task.sample_from != 'rand':
             self._init_eval_loading()
 
-        wandb.login()
+        wandb_proj = "refinery"
+        if not self.cfg_task.if_sbc:
+            wandb_proj += "_eval"
+        if self.cfg_task.sample_from == "gp":
+            wandb_proj += "_gp"
+        if self.cfg_task.sample_from == "gmm":
+            wandb_proj += "_gmm"
+        
+        wandb_log_name = datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+'_'+self.cfg_task.step_id+"_"+str(torch.seed())
+
         wandb.init(
-            project="refinery", 
-            name=self.cfg_task.assembly_id+'_'+self.cfg_task.step_id+'_'+datetime.now().strftime("%m/%d/%Y")
+            project=wandb_proj, 
+            name=wandb_log_name
         )
 
     def _init_eval_loading(self):
