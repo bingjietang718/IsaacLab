@@ -3,7 +3,7 @@ from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-ASSET_DIR = '/home/bingjie/Downloads/all_assembly_asset'
+ASSET_DIR = '/home/btang/Downloads/all_assembly_asset'
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,

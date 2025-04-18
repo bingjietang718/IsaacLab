@@ -3,7 +3,7 @@ from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-ASSET_DIR = '/home/bingjie/Downloads/all_assembly_asset'
+ASSET_DIR = '/home/btang/Downloads/all_assembly_asset'
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -114,7 +114,7 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = False
+    if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
@@ -122,7 +122,7 @@ class AssemblyTask:
     eval_filename: str = 'evaluation_10000_4.h5'
 
     # Fine-tuning
-    sample_from: str = 'gmm'
+    sample_from: str = 'rand'
     num_gp_candidates: int = 1000
     acquisition_function: str = 'ucb'
 

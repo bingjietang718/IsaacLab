@@ -42,6 +42,7 @@ class RefineryEnv(DirectRLEnv):
         self._compute_intermediate_values(dt=self.physics_dt)
 
         # Load asset meshes in warp for SDF-based dense reward 
+        
         wp.init()
         self.wp_device = wp.get_preferred_device()
         self.plug_mesh, self.plug_sample_points, self.socket_mesh = industreal_algo.load_asset_mesh_in_warp(self.cfg_task.assembly_dir+self.cfg_task.held_asset_cfg.obj_path, 
@@ -62,6 +63,7 @@ class RefineryEnv(DirectRLEnv):
         if self.cfg_task.sample_from != 'rand':
             self._init_eval_loading()
 
+        wandb.login()
         wandb.init(
             project="refinery", 
             name=self.cfg_task.assembly_id+'_'+self.cfg_task.step_id+'_'+datetime.now().strftime("%m/%d/%Y")

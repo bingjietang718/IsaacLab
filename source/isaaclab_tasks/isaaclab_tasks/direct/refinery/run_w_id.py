@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 import os
+from datetime import datetime
 
 def update_task_param(task_cfg, asset_dir, assembly_id, step_id, if_sbc, if_log_eval, sample, ac_func):
     # Read the file lines.
@@ -312,7 +313,7 @@ def add_asset_initialization(line, outfile, part_ids):
 
 def main():
     parser = argparse.ArgumentParser(description="Update assembly_id and run training script.")
-    parser.add_argument("--asset_dir", type=str, help="Path to the directory containing asset data.", default="/home/bingjie/Downloads/all_assembly_asset")
+    parser.add_argument("--asset_dir", type=str, help="Path to the directory containing asset data.", default="/home/btang/Downloads/all_assembly_asset")
     parser.add_argument("--cfg_path", type=str, help="Path to the file containing assembly_id.", default="source/isaaclab_tasks/isaaclab_tasks/direct/refinery/refinery_tasks_cfg.py")
     parser.add_argument("--cfg_template", type=str, help="Path to the template file.", default="source/isaaclab_tasks/isaaclab_tasks/direct/refinery/refinery_tasks_cfg_template.py")
     parser.add_argument("--env_path", type=str, help="Path to the file containing assembly_id.", default="source/isaaclab_tasks/isaaclab_tasks/direct/refinery/refinery_env.py")
@@ -380,6 +381,10 @@ def main():
 
     if args.headless:
         bash_command += " --headless"
+
+    date_str = datetime.now().strftime("%m_%d_%Y")
+    run_name = f"refinery_{date_str}_{args.assembly_id}_{args.step_id}"
+    bash_command += f" agent.params.config.name={run_name}"
 
     # Run the bash command
     subprocess.run(bash_command, shell=True, check=True)
