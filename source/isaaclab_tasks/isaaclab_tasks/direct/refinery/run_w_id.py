@@ -267,7 +267,7 @@ def add_asset_instance_in_setup_scene(line, outfile, part_ids):
     if (start_marker not in line) and (end_marker not in line):
         return False
 
-    if start_marker in line:<assembly_id>/evaluation_<assembly_id>_<step_id>.h5
+    if start_marker in line:
         outfile.write(line)
         for part_id in part_ids:
             outfile.write(f"        self._assembled_asset{part_id} = Articulation(self.cfg_task.assembled_asset{part_id})\n")
@@ -357,7 +357,7 @@ def main():
     update_task_param(
         args.cfg_path, 
         args.asset_dir,
-        args.assembly_id, automate
+        args.assembly_id, 
         args.step_id,
         args.train, 
         args.log_eval,
@@ -383,6 +383,7 @@ def main():
         bash_command += " --headless"
 
     if args.train:
+
         date_str = datetime.now().strftime("%m_%d_%Y")
         run_name = f"refinery_{date_str}_{args.assembly_id}_{args.step_id}"
         bash_command += f" agent.params.config.name={run_name}"
