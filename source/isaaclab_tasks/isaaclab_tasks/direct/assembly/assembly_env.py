@@ -69,13 +69,13 @@ class AssemblyEnv(DirectRLEnv):
         if self.cfg_task.sample_from == "gmm":
             wandb_proj += "_gmm"
         
-        wandb_log_name = datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+"_"+str(torch.seed())
-
-        # self.checkpoint_name = "assembly_"+datetime.now().strftime("%m_%d_%Y")+"_"+self.cfg_task.assembly_id+".pth"
-
+        wandb_group = self.cfg_task.assembly_id
+        wandb_log_name = wandb_group+'_'+datetime.now().strftime("%m%d%Y")+"_"+wandb.util.generate_id()
+        
         wandb.init(
             project=wandb_proj, 
-            name=wandb_log_name
+            name=wandb_log_name,
+            group=wandb_group
         )
 
     def _init_eval_loading(self):
