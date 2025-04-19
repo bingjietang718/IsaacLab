@@ -78,6 +78,9 @@ def main():
         run_name = f"automate_{date_str}_{args.assembly_id}"
         bash_command += f" agent.params.config.name={run_name}"
 
+        if args.sample == 'gp':
+            bash_command += f" agent.params.config.max_epochs=200"
+
     # Run the bash command
     subprocess.run(bash_command, shell=True, check=True)
 
