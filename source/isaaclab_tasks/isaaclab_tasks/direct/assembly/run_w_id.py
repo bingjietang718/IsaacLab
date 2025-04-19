@@ -73,9 +73,10 @@ def main():
     if args.headless:
         bash_command += " --headless"
 
-    date_str = datetime.now().strftime("%m_%d_%Y")
-    run_name = f"automate_{date_str}_{args.assembly_id}"
-    bash_command += f" agent.params.config.name={run_name}"
+    if args.train:
+        date_str = datetime.now().strftime("%m_%d_%Y")
+        run_name = f"automate_{date_str}_{args.assembly_id}"
+        bash_command += f" agent.params.config.name={run_name}"
 
     # Run the bash command
     subprocess.run(bash_command, shell=True, check=True)
