@@ -3,7 +3,7 @@ import re
 import subprocess
 from datetime import datetime
 
-def update_task_param(task_cfg, asset_dir, assembly_id, if_sbc, if_log_eval):
+def update_task_param(task_cfg, asset_dir, assembly_id, if_sbc, if_log_eval, sample):
     # Read the file lines.
     with open(task_cfg, 'r') as f:
         lines = f.readlines()
@@ -16,6 +16,7 @@ def update_task_param(task_cfg, asset_dir, assembly_id, if_sbc, if_log_eval):
     if_sbc_pattern = re.compile(r'^(.*if_sbc\s*:\s*bool\s*=\s*).*$')
     if_log_eval_pattern = re.compile(r'^(.*if_logging_eval\s*:\s*bool\s*=\s*).*$')
     eval_file_pattern = re.compile(r'^(.*eval_filename\s*:\s*str\s*=\s*).*$')
+    sample_pattern = re.compile(r'^(.*sample_from\s*:\s*str\s*=\s*).*$')
     
     for line in lines:
         if 'ASSET_DIR = ' in line:
@@ -28,6 +29,8 @@ def update_task_param(task_cfg, asset_dir, assembly_id, if_sbc, if_log_eval):
             line = if_log_eval_pattern.sub(r"\1{}".format(str(if_log_eval)), line)
         elif 'eval_filename: str = ' in line:
             line = eval_file_pattern.sub(r"\1'{}'".format(f"evaluation_{assembly_id}.h5"), line)
+        elif 'sample_from: str = ' in line:
+            line = sample_pattern.sub(r"\1'{}'".format(f"{sample}"), line)
         
         updated_lines.append(line)
     
@@ -44,6 +47,7 @@ def main():
     parser.add_argument("--num_envs", type=int, default=128, help="Number of parallel environment.")
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
+    parser.add_argument("--sample", type=str, default="rand", help="Random seed.")
     parser.add_argument("--finetune", action='store_true', help="Run finetuning mode.")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
     parser.add_argument("--headless", action='store_true', help="Run in headless mode.")
@@ -54,7 +58,8 @@ def main():
         args.asset_dir,
         args.assembly_id, 
         args.train, 
-        args.log_eval
+        args.log_eval,
+        args.sample
         )
 
     bash_command = None
