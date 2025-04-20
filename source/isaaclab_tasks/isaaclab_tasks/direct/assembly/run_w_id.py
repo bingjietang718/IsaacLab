@@ -79,7 +79,10 @@ def main():
         bash_command += f" agent.params.config.name={run_name}"
 
         if args.sample == 'gp':
+            run_name += f"_ft_{args.ac_func}"
             bash_command += f" agent.params.config.max_epochs=200"
+            
+        bash_command += f" agent.params.config.name={run_name}"
 
     # Run the bash command
     subprocess.run(bash_command, shell=True, check=True)
