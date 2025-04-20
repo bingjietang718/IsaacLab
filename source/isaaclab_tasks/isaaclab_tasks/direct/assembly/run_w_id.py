@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--num_envs", type=int, default=128, help="Number of parallel environment.")
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
+    parser.add_argument("--finetune", action='store_true', help="Run finetuning mode.")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
     parser.add_argument("--headless", action='store_true', help="Run in headless mode.")
     args = parser.parse_args()
@@ -76,6 +77,11 @@ def main():
     if args.train:
         date_str = datetime.now().strftime("%m_%d_%Y")
         run_name = f"automate_{date_str}_{args.assembly_id}"
+
+        if args.finetune:
+            run_name += "_ft"
+            bash_command += f" agent.params.config.max_epochs=200"
+
         bash_command += f" agent.params.config.name={run_name}"
 
     # Run the bash command
