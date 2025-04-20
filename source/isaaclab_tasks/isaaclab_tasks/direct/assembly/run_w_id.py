@@ -48,7 +48,6 @@ def main():
     parser.add_argument("--seed", type=int, default=-1, help="Random seed.")
     parser.add_argument("--train", action='store_true', help="Run training mode.")
     parser.add_argument("--sample", type=str, default="rand", help="Random seed.")
-    parser.add_argument("--finetune", action='store_true', help="Run finetuning mode.")
     parser.add_argument("--log_eval", action='store_true', help="Log evaluation results.")
     parser.add_argument("--headless", action='store_true', help="Run in headless mode.")
     args = parser.parse_args()
@@ -83,7 +82,7 @@ def main():
         date_str = datetime.now().strftime("%m_%d_%Y")
         run_name = f"automate_{date_str}_{args.assembly_id}"
 
-        if args.finetune:
+        if args.sample == 'gp':
             run_name += "_ft"
             bash_command += f" agent.params.config.max_epochs=200"
 
