@@ -52,7 +52,6 @@ class DisassemblyActEnv(DisassemblyEnv):
         for _ in range(sim_steps):
             if if_log:
                 self._log_robot_state_per_timestep()
-            print('finger', self.fingertip_midpoint_pos[0], 'goal', goal_pos[0])
             # Compute error to target.
             pos_error, axis_angle_error = fc.get_pose_error(
                 fingertip_midpoint_pos=self.fingertip_midpoint_pos[env_ids],
