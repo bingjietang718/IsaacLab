@@ -3,7 +3,7 @@ from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-ASSET_DIR = '/home/bingjie/Downloads/all_assembly_asset'
+ASSET_DIR = '/home/btang/Downloads/all_assembly_asset'
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -63,7 +63,6 @@ class AssemblyTask:
     fixed_asset_cfg: FixedAssetCfg = FixedAssetCfg()
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
-
     # palm_to_finger_dist: float = 0.1034
     palm_to_finger_dist: float = 0.1134
 
@@ -77,13 +76,13 @@ class AssemblyTask:
     unidirectional_rot: bool = False
 
     # Fixed Asset (applies to all tasks)
-    fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
+    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
     # held_asset_pos_noise: list = [0.0, 0.006, 0.003]  # noise level of the held asset in gripper
-    held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
+    held_asset_init_pos_noise: list = [0.02, 0.02, 0.02]
     held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
 
@@ -120,15 +119,15 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = True
+    if_sbc: bool = False
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_00768.h5'
+    eval_filename: str = 'evaluation_01053.h5'
 
     # Fine-tuning
-    sample_from: str = 'rand' # gp, gmm, idv, rand
+    sample_from: str = 'rand'
     num_gp_candidates: int = 1000
 
 @configclass
@@ -151,7 +150,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '00768'
+    assembly_id = '01053'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()

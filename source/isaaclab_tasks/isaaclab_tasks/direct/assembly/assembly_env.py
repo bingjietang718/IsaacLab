@@ -12,7 +12,8 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.math import axis_angle_from_quat
 
 from . import factory_control as fc
-from .assembly_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
+# from .assembly_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
+from .assembly_fr3_env_cfg import AssemblyEnvCfg, OBS_DIM_CFG, STATE_DIM_CFG
 
 import json
 import wandb
@@ -184,9 +185,12 @@ class AssemblyEnv(DirectRLEnv):
         self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], -1, 1)
 
         # Computer body indices.
-        self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
-        self.right_finger_body_idx = self._robot.body_names.index('panda_rightfinger')
-        self.fingertip_body_idx = self._robot.body_names.index('panda_fingertip_centered')
+        # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
+        # self.right_finger_body_idx = self._robot.body_names.index('panda_rightfinger')
+        # self.fingertip_body_idx = self._robot.body_names.index('panda_fingertip_centered')
+        self.left_finger_body_idx = self._robot.body_names.index('fr3_leftfinger')
+        self.right_finger_body_idx = self._robot.body_names.index('fr3_rightfinger')
+        self.fingertip_body_idx = self._robot.body_names.index('fr3_hand_tcp')
 
         # Tensors for finite-differencing.
         self.last_update_timestamp = 0.0  # Note: This is for finite differencing body velocities.
@@ -831,8 +835,10 @@ class AssemblyEnv(DirectRLEnv):
             self.cfg_task.fixed_asset_init_pos_noise,
             dtype=torch.float32, device=self.device)
         fixed_pos_init_rand = fixed_pos_init_rand @ torch.diag(fixed_asset_init_pos_rand)
+
         fixed_state[:, 0:3] += fixed_pos_init_rand + self.scene.env_origins[env_ids]
-        fixed_state[:, 3] += 0.1435
+        
+        fixed_state[:, 2] += 0.1435
 
         # (1.b.) Orientation
         fixed_orn_init_yaw = np.deg2rad(self.cfg_task.fixed_asset_init_orn_deg)

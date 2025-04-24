@@ -153,21 +153,21 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
         ),
         init_state=ArticulationCfg.InitialStateCfg(
             joint_pos={
-                "panda_joint1": 0.00871, 
-                "panda_joint2": -0.10368, 
-                "panda_joint3": -0.00794, 
-                "panda_joint4": -1.49139, 
-                "panda_joint5": -0.00083, 
-                "panda_joint6": 1.38774,
-                "panda_joint7": 0.0,
-                "panda_finger_joint2": 0.04,
+                "fr3_joint1": 0.00871, 
+                "fr3_joint2": -0.10368, 
+                "fr3_joint3": -0.00794, 
+                "fr3_joint4": -1.49139, 
+                "fr3_joint5": -0.00083, 
+                "fr3_joint6": 1.38774,
+                "fr3_joint7": 0.0,
+                "fr3_finger_joint2": 0.04,
             },
             pos=(0.0, 0.0, 0.0),
             rot=(1.0, 0.0, 0.0, 0.0),
         ),
         actuators={
-            "panda_arm1": ImplicitActuatorCfg(
-                joint_names_expr=["panda_joint[1-4]"],
+            "fr3_arm1": ImplicitActuatorCfg(
+                joint_names_expr=["fr3_joint[1-4]"],
                 stiffness=0.0,
                 damping=0.0,
                 friction=0.0,
@@ -175,8 +175,8 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
                 effort_limit=87,
                 velocity_limit=124.6
             ),
-            "panda_arm2": ImplicitActuatorCfg(
-                joint_names_expr=["panda_joint[5-7]"],
+            "fr3_arm2": ImplicitActuatorCfg(
+                joint_names_expr=["fr3_joint[5-7]"],
                 stiffness=0.0,
                 damping=0.0,
                 friction=0.0,
@@ -184,8 +184,8 @@ class AssemblyEnvCfg(DirectRLEnvCfg):
                 effort_limit=12,
                 velocity_limit=149.5
             ),
-            "panda_hand": ImplicitActuatorCfg(
-                joint_names_expr=["panda_finger_joint[1-2]"],
+            "fr3_hand": ImplicitActuatorCfg(
+                joint_names_expr=["fr3_finger_joint[1-2]"],
                 effort_limit=40.0,
                 velocity_limit=0.04,
                 stiffness=7500.0,
