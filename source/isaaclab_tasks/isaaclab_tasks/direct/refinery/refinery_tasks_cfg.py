@@ -114,12 +114,12 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = True
+    if_sbc: bool = False
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_12099_5.h5'
+    eval_filename: str = 'evaluation_10000_4.h5'
 
     # Fine-tuning
     sample_from: str = 'rand'
@@ -128,16 +128,16 @@ class AssemblyTask:
 
 @configclass
 class HeldAsset(HeldAssetCfg):
-    usd_path = '12099_5.usd'
-    obj_path = '12099_5.obj'
+    usd_path = '10000_4.usd'
+    obj_path = '10000_4.obj'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
 class FixedAsset(FixedAssetCfg):
-    usd_path = '12099_0.usd'
-    obj_path = '12099_0.obj'
+    usd_path = '10000_0.usd'
+    obj_path = '10000_0.obj'
     diameter = 0.0081
     height = 0.050896
     base_height = 0.0
@@ -145,32 +145,24 @@ class FixedAsset(FixedAssetCfg):
 ## start: add assembled asset config classes
 @configclass
 class AssembledAsset1(FixedAssetCfg):
-    usd_path = '12099_1.usd'
-    obj_path = '12099_1.obj'
+    usd_path = '10000_1.usd'
+    obj_path = '10000_1.obj'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
 class AssembledAsset2(FixedAssetCfg):
-    usd_path = '12099_2.usd'
-    obj_path = '12099_2.obj'
+    usd_path = '10000_2.usd'
+    obj_path = '10000_2.obj'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
 
 @configclass
 class AssembledAsset3(FixedAssetCfg):
-    usd_path = '12099_3.usd'
-    obj_path = '12099_3.obj'
-    diameter = 0.007986
-    height = 0.050
-    mass = 0.019
-
-@configclass
-class AssembledAsset4(FixedAssetCfg):
-    usd_path = '12099_4.usd'
-    obj_path = '12099_4.obj'
+    usd_path = '10000_3.usd'
+    obj_path = '10000_3.obj'
     diameter = 0.007986
     height = 0.050
     mass = 0.019
@@ -182,8 +174,8 @@ class AssembledAsset4(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '12099'
-    step_id = '5'
+    assembly_id = '10000'
+    step_id = '4'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = FixedAsset()
@@ -192,7 +184,6 @@ class Insertion(AssemblyTask):
     assembled_asset_1_cfg = AssembledAsset1()
     assembled_asset_2_cfg = AssembledAsset2()
     assembled_asset_3_cfg = AssembledAsset3()
-    assembled_asset_4_cfg = AssembledAsset4()
     ## end: add assembled asset in task classes
     
 
@@ -345,42 +336,6 @@ class Insertion(AssemblyTask):
         prim_path="/World/envs/env_.*/AssembledAsset3",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f'{assembly_dir}{assembled_asset_3_cfg.usd_path}',
-            activate_contact_sensors=True,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                disable_gravity=False,
-                max_depenetration_velocity=5.0,
-                linear_damping=0.0,
-                angular_damping=0.0,
-                max_linear_velocity=1000.0,
-                max_angular_velocity=3666.0,
-                enable_gyroscopic_forces=True,
-                solver_position_iteration_count=192,
-                solver_velocity_iteration_count=1,
-                max_contact_impulse=1e32,
-            ),
-            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-                enabled_self_collisions=True,
-                fix_root_link=True, # add this so the fixed asset is set to have a fixed base
-            ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=fixed_asset_cfg.mass),
-            collision_props=sim_utils.CollisionPropertiesCfg(
-                contact_offset=0.005,
-                rest_offset=0.0
-            ),
-        ),
-        init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.6, 0.0, 0.05),
-            rot=(1.0, 0.0, 0.0, 0.0),
-            joint_pos={},
-            joint_vel={},
-        ),
-        actuators={}
-    )
-
-    assembled_asset4: ArticulationCfg = ArticulationCfg(
-        prim_path="/World/envs/env_.*/AssembledAsset4",
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=f'{assembly_dir}{assembled_asset_4_cfg.usd_path}',
             activate_contact_sensors=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,

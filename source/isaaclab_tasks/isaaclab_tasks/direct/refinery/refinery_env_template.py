@@ -843,7 +843,7 @@ class RefineryEnv(DirectRLEnv):
             dtype=torch.float32, device=self.device)
         fixed_pos_init_rand = fixed_pos_init_rand @ torch.diag(fixed_asset_init_pos_rand)
         fixed_state[:, 0:3] += fixed_pos_init_rand + self.scene.env_origins[env_ids]
-        fixed_state[:, 3] += 0.1435
+        fixed_state[:, 2] += 0.1435
 
         # (1.b.) Orientation
         fixed_orn_init_yaw = np.deg2rad(self.cfg_task.fixed_asset_init_orn_deg)
