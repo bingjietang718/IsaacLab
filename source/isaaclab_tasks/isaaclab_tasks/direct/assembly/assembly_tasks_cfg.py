@@ -77,6 +77,7 @@ class AssemblyTask:
 
     # Fixed Asset (applies to all tasks)
     fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
+    fixed_asset_init_rot_noise: list = [0.0872665, 0.0872665, 0.0872665]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
@@ -85,6 +86,9 @@ class AssemblyTask:
     held_asset_init_pos_noise: list = [0.02, 0.02, 0.02]
     held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
+
+    goal_obs_pos_noise: list = [0.002, 0.002, 0.002]
+    goal_obs_rot_noise: list = [0.0872665, 0.0872665, 0.0872665]
 
     # Reward
     ee_success_yaw: float = 0.0  # nut_threading task only.
@@ -170,7 +174,7 @@ class Insertion(AssemblyTask):
     hand_width_max: float = 0.080  # maximum opening width of gripper
 
     # Fixed Asset (applies to all tasks)
-    fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
+    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 

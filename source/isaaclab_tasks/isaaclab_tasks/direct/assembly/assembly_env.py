@@ -87,8 +87,6 @@ class AssemblyEnv(DirectRLEnv):
             self.gp = automate_algo.model_succ_w_gp(eval_held_asset_pose, eval_fixed_asset_pose, eval_success)
         elif self.cfg_task.sample_from == 'gmm':
             self.gmm = automate_algo.model_succ_w_gmm(eval_held_asset_pose, eval_fixed_asset_pose, eval_success)
-        # elif self.cfg_task.sample_from == 'idv':
-        # self.cfg_task.if_sbc = False
 
     def _init_eval_logging(self):
 
@@ -383,26 +381,66 @@ class AssemblyEnv(DirectRLEnv):
             p=2, dim=-1).mean(-1)
         self.last_update_timestamp = self._robot._data._sim_timestamp
 
+    def _get_goal_obs_noise(self):
+
+        rand_sample = torch.rand((self.num_envs, 3), dtype=torch.float32, device=self.device)
+        noise_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+        obs_noise = torch.tensor(
+            self.cfg_task.goal_obs_pos_noise,
+            dtype=torch.float32, device=self.device)
+        goal_obs_pos_noise = noise_init_rand @ torch.diag(obs_noise)
+
+        rand_sample = torch.rand((self.num_envs, 3), dtype=torch.float32, device=self.device)
+        fixed_rot_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+        fixed_asset_init_rot_rand = torch.tensor(
+            self.cfg_task.fixed_asset_init_rot_noise,
+            dtype=torch.float32, device=self.device)
+        fixed_rot_init_rand = fixed_rot_init_rand @ torch.diag(fixed_asset_init_rot_rand)
+        noisy_fixed_quat = torch_utils.quat_from_euler_xyz(
+            fixed_rot_init_rand[:, 0],
+            fixed_rot_init_rand[:, 1],
+            fixed_rot_init_rand[:, 2])
+
+        noisy_goal_quat, noisy_goal_pos = torch_utils.tf_combine(
+            noisy_fixed_quat,
+            self.fixed_pos,
+            self.plug_grasp_quat_local,
+            self.plug_grasp_pos_local,
+        )
+
+        noisy_goal_quat, noisy_goal_pos = torch_utils.tf_combine(
+            noisy_goal_quat,
+            noisy_goal_pos,
+            self.robot_to_gripper_quat,
+            self.palm_to_finger_center,
+        )
+
+        return goal_obs_pos_noise, noisy_goal_quat
+
     def _get_observations(self):
         """ Get actor/critic inputs using assymetric critic. """
-        # noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
+        goal_obs_pos_noise, noisy_goal_quat = self._get_goal_obs_noise()
 
-        # prev_actions = self.actions.clone()
+        # roll by 1 for real robot setup
+        obs_fingertip_midpoint_quat = torch.roll(self.fingertip_midpoint_quat, -1, 1)
+        obs_noisy_goal_quat = torch.roll(noisy_goal_quat, -1, 1)
 
         obs_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
-            'fingertip_quat': self.fingertip_midpoint_quat,
-            'fingertip_goal_pos': self.gripper_goal_pos,
-            'fingertip_goal_quat': self.gripper_goal_quat,
-            'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
+            'fingertip_quat': obs_fingertip_midpoint_quat,
+            'fingertip_goal_pos': self.gripper_goal_pos+goal_obs_pos_noise,
+            'fingertip_goal_quat': obs_noisy_goal_quat,
+            'delta_pos': self.gripper_goal_pos+goal_obs_pos_noise - self.fingertip_midpoint_pos, 
         }
 
+        print(obs_dict)
+        
         state_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'joint_vel': self.joint_vel[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
-            'fingertip_quat': self.fingertip_midpoint_quat,
+            'fingertip_quat': obs_fingertip_midpoint_quat,
             'ee_linvel': self.fingertip_midpoint_linvel,
             'ee_angvel': self.fingertip_midpoint_angvel,
             'fingertip_goal_pos': self.gripper_goal_pos,
@@ -411,6 +449,10 @@ class AssemblyEnv(DirectRLEnv):
             'held_quat': self.held_quat,
             'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
         }
+
+        print(state_dict)
+
+        exit(0)
         # obs_tensors = [obs_dict[obs_name] for obs_name in self.cfg.obs_order + ['prev_actions']]
         obs_tensors = [obs_dict[obs_name] for obs_name in self.cfg.obs_order]
         obs_tensors = torch.cat(obs_tensors, dim=-1)
@@ -583,8 +625,6 @@ class AssemblyEnv(DirectRLEnv):
         self.ep_succeeded = torch.logical_or(self.ep_succeeded, curr_successes)
 
         wandb.log(self.extras)
-
-        # wandb.save(os.path.join(wandb.run.dir, self.checkpoint_name))
 
         # Only log episode success rates at the end of an episode.
         if torch.any(self.reset_buf):
@@ -800,8 +840,6 @@ class AssemblyEnv(DirectRLEnv):
 
     def _set_franka_to_default_pose(self, joints, env_ids):
         """ Return Franka to its default joint position. """
-        # gripper_width = self.cfg_task.held_asset_cfg.diameter / 2 * 1.25
-        # gripper_width = self.cfg_task.hand_width_max / 3.0
         gripper_width = self.gripper_open_width
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_pos[:, 7:] = gripper_width  # MIMIC
@@ -841,15 +879,17 @@ class AssemblyEnv(DirectRLEnv):
         fixed_state[:, 2] += 0.1435
 
         # (1.b.) Orientation
-        fixed_orn_init_yaw = np.deg2rad(self.cfg_task.fixed_asset_init_orn_deg)
-        fixed_orn_yaw_range = np.deg2rad(self.cfg_task.fixed_asset_init_orn_range_deg)
         rand_sample = torch.rand((len(env_ids), 3), dtype=torch.float32, device=self.device)
-        fixed_orn_euler = fixed_orn_init_yaw + fixed_orn_yaw_range * rand_sample
-        fixed_orn_euler[:, 0:2] = 0.  # Only change yaw.
+        fixed_rot_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+        fixed_asset_init_rot_rand = torch.tensor(
+            self.cfg_task.fixed_asset_init_rot_noise,
+            dtype=torch.float32, device=self.device)
+        fixed_rot_init_rand = fixed_rot_init_rand @ torch.diag(fixed_asset_init_rot_rand)
         fixed_orn_quat = torch_utils.quat_from_euler_xyz(
-            fixed_orn_euler[:, 0],
-            fixed_orn_euler[:, 1],
-            fixed_orn_euler[:, 2])
+            fixed_rot_init_rand[:, 0],
+            fixed_rot_init_rand[:, 1],
+            fixed_rot_init_rand[:, 2])
+
         fixed_state[:, 3:7]  = fixed_orn_quat
         # (1.c.) Velocity
         fixed_state[:, 7:] = 0.0  # vel
