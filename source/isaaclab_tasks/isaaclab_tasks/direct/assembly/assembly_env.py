@@ -433,8 +433,6 @@ class AssemblyEnv(DirectRLEnv):
             'fingertip_goal_quat': obs_noisy_goal_quat,
             'delta_pos': self.gripper_goal_pos+goal_obs_pos_noise - self.fingertip_midpoint_pos, 
         }
-
-        print(obs_dict)
         
         state_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
@@ -450,9 +448,6 @@ class AssemblyEnv(DirectRLEnv):
             'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
         }
 
-        print(state_dict)
-
-        exit(0)
         # obs_tensors = [obs_dict[obs_name] for obs_name in self.cfg.obs_order + ['prev_actions']]
         obs_tensors = [obs_dict[obs_name] for obs_name in self.cfg.obs_order]
         obs_tensors = torch.cat(obs_tensors, dim=-1)
