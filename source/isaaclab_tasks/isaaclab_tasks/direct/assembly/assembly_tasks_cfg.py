@@ -63,8 +63,8 @@ class AssemblyTask:
     fixed_asset_cfg: FixedAssetCfg = FixedAssetCfg()
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
-    # palm_to_finger_dist: float = 0.1034
-    palm_to_finger_dist: float = 0.1134
+    palm_to_finger_dist: float = 0.1034
+    # palm_to_finger_dist: float = 0.1134
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.015]  # Relative to fixed asset tip.
@@ -124,12 +124,12 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = True
+    if_sbc: bool = False
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_00346.h5'
+    eval_filename: str = 'evaluation_01053.h5'
 
     # Fine-tuning
     sample_from: str = 'rand'
@@ -155,7 +155,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '00346'
+    assembly_id = '01053'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()
