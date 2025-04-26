@@ -45,7 +45,7 @@ class CtrlCfg:
     pos_action_bounds = [0.1, 0.1, 0.1]
     rot_action_bounds = [0.01, 0.01, 0.01]
 
-    pos_action_threshold = [0.1, 0.1, 0.1]
+    pos_action_threshold = [0.01, 0.01, 0.01]
     rot_action_threshold = [0.01, 0.01, 0.01]
 
     reset_joints = [0.0, 0.0, 0.0, -1.870, 0.0, 1.8675, 0.785398]

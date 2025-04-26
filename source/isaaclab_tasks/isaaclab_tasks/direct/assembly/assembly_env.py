@@ -177,10 +177,10 @@ class AssemblyEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -self.cfg_task.palm_to_finger_dist], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, self.cfg_task.palm_to_finger_dist], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
-        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], -1, 1)
+        self.plug_grasp_quat_local = self.plug_grasps[:self.num_envs, 3:]
 
         # Computer body indices.
         # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
@@ -273,6 +273,19 @@ class AssemblyEnv(DirectRLEnv):
 
         return keypoint_offsets
 
+    def pose_world_to_robot_base(self, pos, quat):
+        """Convert pose from world frame to robot base frame."""
+
+        robot_base_transform_inv = torch_utils.tf_inverse(
+            torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1), 
+            torch.tensor([0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1), 
+        )
+        quat_in_robot_base, pos_in_robot_base = torch_utils.tf_combine(
+            robot_base_transform_inv[0], robot_base_transform_inv[1], quat, pos
+        )
+
+        return pos_in_robot_base, quat_in_robot_base
+
     def _setup_scene(self):
         """ Initialize simulation scene. """
         spawn_ground_plane(
@@ -284,6 +297,7 @@ class AssemblyEnv(DirectRLEnv):
         # spawn a usd file of a table into the scene
         cfg = sim_utils.UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd")
         cfg.func("/World/envs/env_.*/Table", cfg, translation=(0.55, 0.0, 0.0), orientation=(0.70711, 0.0, 0.0, 0.70711))
+        # cfg.func("/World/envs/env_.*/Table", cfg, translation=(-0.0, 0.0, 0.0), orientation=(0.70711, 0.0, 0.0, -0.70711))
 
         self._robot = Articulation(self.cfg.robot)
         self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
@@ -334,7 +348,6 @@ class AssemblyEnv(DirectRLEnv):
             self.plug_grasp_quat_local,
             self.plug_grasp_pos_local,
         )
-
         self.gripper_goal_quat, self.gripper_goal_pos = torch_utils.tf_combine(
             self.gripper_goal_quat,
             self.gripper_goal_pos,
@@ -421,24 +434,21 @@ class AssemblyEnv(DirectRLEnv):
         """ Get actor/critic inputs using assymetric critic. """
         goal_obs_pos_noise, noisy_goal_quat = self._get_goal_obs_noise()
 
-        # roll by 1 for real robot setup
-        obs_fingertip_midpoint_quat = torch.roll(self.fingertip_midpoint_quat, -1, 1)
-        obs_noisy_goal_quat = torch.roll(noisy_goal_quat, -1, 1)
-
         obs_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
-            'fingertip_quat': obs_fingertip_midpoint_quat,
+            'fingertip_quat': self.fingertip_midpoint_quat,
             'fingertip_goal_pos': self.gripper_goal_pos+goal_obs_pos_noise,
-            'fingertip_goal_quat': obs_noisy_goal_quat,
+            'fingertip_goal_quat': noisy_goal_quat,
             'delta_pos': self.gripper_goal_pos+goal_obs_pos_noise - self.fingertip_midpoint_pos, 
         }
+        # print(obs_dict)
         
         state_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'joint_vel': self.joint_vel[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
-            'fingertip_quat': obs_fingertip_midpoint_quat,
+            'fingertip_quat': self.fingertip_midpoint_quat,
             'ee_linvel': self.fingertip_midpoint_linvel,
             'ee_angvel': self.fingertip_midpoint_angvel,
             'fingertip_goal_pos': self.gripper_goal_pos,
@@ -533,10 +543,10 @@ class AssemblyEnv(DirectRLEnv):
         rot_actions = rot_actions * self.rot_threshold
 
         self.ctrl_target_fingertip_midpoint_pos = self.fingertip_midpoint_pos + pos_actions
-        # To speed up learning, never allow the policy to move more than 5cm away from the base.
-        delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
-        pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
-        self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
+        # # To speed up learning, never allow the policy to move more than 5cm away from the base.
+        # delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
+        # pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
+        # self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
 
         # Convert to quat and set rot target
         angle = torch.norm(rot_actions, p=2, dim=-1)
@@ -552,15 +562,15 @@ class AssemblyEnv(DirectRLEnv):
         )
         self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_mul(rot_actions_quat, self.fingertip_midpoint_quat)
         
-        target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
-        target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
-        target_euler_xyz[:, 1] = 0.0
+        # target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
+        # target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
+        # target_euler_xyz[:, 1] = 0.0
 
-        self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
-            roll=target_euler_xyz[:, 0],
-            pitch=target_euler_xyz[:, 1],
-            yaw=target_euler_xyz[:, 2]
-        )
+        # self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
+        #     roll=target_euler_xyz[:, 0],
+        #     pitch=target_euler_xyz[:, 1],
+        #     yaw=target_euler_xyz[:, 2]
+        # )
 
         self.ctrl_target_gripper_dof_pos = 0.0
         self.generate_ctrl_signals()
@@ -778,20 +788,6 @@ class AssemblyEnv(DirectRLEnv):
         self.ctrl_target_fingertip_midpoint_pos = gripper_goal_pos.clone()
 
         # Set target rot
-        # ctrl_target_fingertip_centered_euler = (
-        #     torch.tensor(
-        #         self.cfg_task.hand_init_orn,
-        #         device=self.device,
-        #     )
-        #     .unsqueeze(0)
-        #     .repeat(self.num_envs, 1)
-        # )
-
-        # self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
-        #     ctrl_target_fingertip_centered_euler[:, 0],
-        #     ctrl_target_fingertip_centered_euler[:, 1],
-        #     ctrl_target_fingertip_centered_euler[:, 2],
-        # )
         self.ctrl_target_fingertip_midpoint_quat = gripper_goal_quat.clone()
 
         self.set_pos_inverse_kinematics(env_ids)
@@ -870,8 +866,6 @@ class AssemblyEnv(DirectRLEnv):
         fixed_pos_init_rand = fixed_pos_init_rand @ torch.diag(fixed_asset_init_pos_rand)
 
         fixed_state[:, 0:3] += fixed_pos_init_rand + self.scene.env_origins[env_ids]
-        
-        fixed_state[:, 2] += 0.1435
 
         # (1.b.) Orientation
         rand_sample = torch.rand((len(env_ids), 3), dtype=torch.float32, device=self.device)

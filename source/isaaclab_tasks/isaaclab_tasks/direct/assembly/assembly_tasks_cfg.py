@@ -76,6 +76,7 @@ class AssemblyTask:
     unidirectional_rot: bool = False
 
     # Fixed Asset (applies to all tasks)
+    fixed_asset_init_pos: list = [0.2, 0.0, 0.0]
     fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
     fixed_asset_init_rot_noise: list = [0.0872665, 0.0872665, 0.0872665]
     fixed_asset_init_orn_deg: float = 0.0
@@ -123,12 +124,12 @@ class AssemblyTask:
     num_curriculum_step: int = 10
     curriculum_height_step: list = [-0.005, 0.003]  # how much to increase max initial downward displacement after hitting success or failure thresh
     
-    if_sbc: bool = False
+    if_sbc: bool = True
 
     # Logging evaluation results
     if_logging_eval: bool = False
     num_eval_trials: int = 1000
-    eval_filename: str = 'evaluation_01053.h5'
+    eval_filename: str = 'evaluation_00346.h5'
 
     # Fine-tuning
     sample_from: str = 'rand'
@@ -154,7 +155,7 @@ class Hole8mm(FixedAssetCfg):
 class Insertion(AssemblyTask):
     name = 'insertion'
 
-    assembly_id = '01053'
+    assembly_id = '00346'
     assembly_dir = f'{ASSET_DIR}/{assembly_id}/'
 
     fixed_asset_cfg = Hole8mm()
@@ -174,7 +175,7 @@ class Insertion(AssemblyTask):
     hand_width_max: float = 0.080  # maximum opening width of gripper
 
     # Fixed Asset (applies to all tasks)
-    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
+    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.05]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
@@ -225,7 +226,7 @@ class Insertion(AssemblyTask):
         ),
         init_state=ArticulationCfg.InitialStateCfg(
         # init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.6, 0.0, 0.05),
+            pos=(0.55, 0.0, 0.1435),
             rot=(1.0, 0.0, 0.0, 0.0),
             joint_pos={},
             joint_vel={}
