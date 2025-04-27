@@ -84,7 +84,7 @@ def main():
 
         if args.sample == 'gp':
             run_name += "_ft"
-            bash_command += f" agent.params.config.max_epochs=400"
+            bash_command += f" agent.params.config.max_epochs=300"
 
         bash_command += f" agent.params.config.name={run_name}"
 
