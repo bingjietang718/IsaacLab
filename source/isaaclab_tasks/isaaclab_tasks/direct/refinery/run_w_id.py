@@ -239,7 +239,7 @@ def generate_asset_articulationcfg(part_ids):
         lines.append("            ),\n")
         lines.append("        ),\n")
         lines.append("        init_state=ArticulationCfg.InitialStateCfg(\n")
-        lines.append("            pos=(0.6, 0.0, 0.05),\n")
+        lines.append("            pos=(0.55, 0.0, 0.1435),\n")
         lines.append("            rot=(1.0, 0.0, 0.0, 0.0),\n")
         lines.append("            joint_pos={},\n")
         lines.append("            joint_vel={},\n")

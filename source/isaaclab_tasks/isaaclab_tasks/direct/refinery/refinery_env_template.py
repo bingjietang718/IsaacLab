@@ -181,10 +181,10 @@ class RefineryEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
-        self.plug_grasp_quat_local = self.plug_grasps[:self.num_envs, 3:]
+        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
 
         # Computer body indices.
         # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
@@ -394,19 +394,29 @@ class RefineryEnv(DirectRLEnv):
             p=2, dim=-1).mean(-1)
         self.last_update_timestamp = self._robot._data._sim_timestamp
 
+    def _get_goal_obs_noise(self):
+
+        rand_sample = torch.rand((self.num_envs, 3), dtype=torch.float32, device=self.device)
+        noise_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+        obs_noise = torch.tensor(
+            self.cfg_task.goal_obs_noise,
+            dtype=torch.float32, device=self.device)
+        goal_obs_noise = noise_init_rand @ torch.diag(obs_noise)
+        return goal_obs_noise
+
     def _get_observations(self):
         """ Get actor/critic inputs using assymetric critic. """
         # noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
 
-        # prev_actions = self.actions.clone()
+        goal_obs_noise = self._get_goal_obs_noise()
 
         obs_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
             'fingertip_quat': self.fingertip_midpoint_quat,
-            'fingertip_goal_pos': self.gripper_goal_pos,
+            'fingertip_goal_pos': self.gripper_goal_pos+goal_obs_noise,
             'fingertip_goal_quat': self.gripper_goal_quat,
-            'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
+            'delta_pos': self.gripper_goal_pos+goal_obs_noise - self.fingertip_midpoint_pos, 
         }
 
         state_dict = {
@@ -914,7 +924,7 @@ class RefineryEnv(DirectRLEnv):
         held_state[env_ids, 0:3] = self.fixed_pos[env_ids].clone() + self.scene.env_origins[env_ids]
         held_state[env_ids, 3:7] = self.fixed_quat[env_ids].clone()
         held_state[env_ids, 7:] = 0.0
-        
+
         held_state[env_ids, 0] += self.disassembly_directions[0] * self.curriculum_disp
         held_state[env_ids, 1] += self.disassembly_directions[1] * self.curriculum_disp
         held_state[env_ids, 2] += self.disassembly_directions[2] * self.curriculum_disp

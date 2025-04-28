@@ -59,7 +59,7 @@ class AssemblyTask:
     held_asset_cfg: HeldAssetCfg = HeldAssetCfg()
     asset_size: float = 0.0
 
-    palm_to_finger_dist: float = 0.1134
+    palm_to_finger_dist: float = 0.1034
 
     # Robot
     hand_init_pos: list = [0.0, 0.0, 0.015]  # Relative to fixed asset tip.
@@ -71,13 +71,13 @@ class AssemblyTask:
     unidirectional_rot: bool = False
 
     # Fixed Asset (applies to all tasks)
-    fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
+    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
     # held_asset_pos_noise: list = [0.0, 0.006, 0.003]  # noise level of the held asset in gripper
-    held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
+    held_asset_init_pos_noise: list = [0.02, 0.02, 0.02]
     held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
 
@@ -176,14 +176,16 @@ class Insertion(AssemblyTask):
     hand_width_max: float = 0.080  # maximum opening width of gripper
 
     # Fixed Asset (applies to all tasks)
-    fixed_asset_init_pos_noise: list = [0.05, 0.05, 0.05]
+    fixed_asset_init_pos_noise: list = [0.1, 0.1, 0.1]
     fixed_asset_init_orn_deg: float = 0.0
     fixed_asset_init_orn_range_deg: float = 10.0
 
     # Held Asset (applies to all tasks)
-    held_asset_init_pos_noise: list = [0.01, 0.01, 0.01]
+    held_asset_init_pos_noise: list = [0.02, 0.02, 0.02]
     held_asset_pos_noise: list = [0.0, 0.0, 0.0]
     held_asset_rot_init: float = 0.0
+
+    goal_obs_noise: list = [0.002, 0.002, 0.002]
 
     # Rewards
     keypoint_coef_baseline: list = [5, 4]
@@ -224,7 +226,7 @@ class Insertion(AssemblyTask):
             ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.6, 0.0, 0.05),
+            pos=(0.55, 0.0, 0.1435),
             rot=(1.0, 0.0, 0.0, 0.0),
             joint_pos={},
             joint_vel={}
@@ -265,7 +267,7 @@ class Insertion(AssemblyTask):
             ),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.0, 0.4, 0.1),
+            pos=(0.0, 0.4, 0.2),
             rot=(1.0, 0.0, 0.0, 0.0),
         ),
     )
