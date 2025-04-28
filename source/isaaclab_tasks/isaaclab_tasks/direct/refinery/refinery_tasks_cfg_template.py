@@ -267,7 +267,7 @@ class Insertion(AssemblyTask):
             ),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.0, 0.4, 0.2),
+            pos=(0.0, 0.4, 0.1),
             rot=(1.0, 0.0, 0.0, 0.0),
         ),
     )

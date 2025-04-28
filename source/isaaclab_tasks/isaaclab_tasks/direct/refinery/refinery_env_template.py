@@ -181,7 +181,7 @@ class RefineryEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
         self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
@@ -853,7 +853,6 @@ class RefineryEnv(DirectRLEnv):
             dtype=torch.float32, device=self.device)
         fixed_pos_init_rand = fixed_pos_init_rand @ torch.diag(fixed_asset_init_pos_rand)
         fixed_state[:, 0:3] += fixed_pos_init_rand + self.scene.env_origins[env_ids]
-        fixed_state[:, 2] += 0.1435
 
         # (1.b.) Orientation
         fixed_orn_init_yaw = np.deg2rad(self.cfg_task.fixed_asset_init_orn_deg)
