@@ -181,10 +181,11 @@ class RefineryEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
-        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
+        # self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
+        self.plug_grasp_quat_local = self.plug_grasps[:self.num_envs, 3:]
 
         # Computer body indices.
         # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
