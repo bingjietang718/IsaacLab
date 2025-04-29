@@ -418,6 +418,7 @@ class RefineryEnv(DirectRLEnv):
             'fingertip_goal_quat': self.gripper_goal_quat,
             'delta_pos': self.gripper_goal_pos+goal_obs_noise - self.fingertip_midpoint_pos, 
         }
+        # print(f"obs_dict: {obs_dict}")
 
         state_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
@@ -518,9 +519,9 @@ class RefineryEnv(DirectRLEnv):
 
         self.ctrl_target_fingertip_midpoint_pos = self.fingertip_midpoint_pos + pos_actions
         # To speed up learning, never allow the policy to move more than 5cm away from the base.
-        delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
-        pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
-        self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
+        # delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
+        # pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
+        # self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
 
         # Convert to quat and set rot target
         angle = torch.norm(rot_actions, p=2, dim=-1)
@@ -536,15 +537,15 @@ class RefineryEnv(DirectRLEnv):
         )
         self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_mul(rot_actions_quat, self.fingertip_midpoint_quat)
         
-        target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
-        target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
-        target_euler_xyz[:, 1] = 0.0
+        # target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
+        # target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
+        # target_euler_xyz[:, 1] = 0.0
 
-        self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
-            roll=target_euler_xyz[:, 0],
-            pitch=target_euler_xyz[:, 1],
-            yaw=target_euler_xyz[:, 2]
-        )
+        # self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
+        #     roll=target_euler_xyz[:, 0],
+        #     pitch=target_euler_xyz[:, 1],
+        #     yaw=target_euler_xyz[:, 2]
+        # )
 
         self.ctrl_target_gripper_dof_pos = 0.0
         self.generate_ctrl_signals()

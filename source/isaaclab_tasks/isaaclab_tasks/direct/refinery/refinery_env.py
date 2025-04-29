@@ -181,10 +181,10 @@ class RefineryEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
-        self.plug_grasp_quat_local = self.plug_grasps[:self.num_envs, 3:]
+        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
 
         # Computer body indices.
         # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
@@ -299,9 +299,6 @@ class RefineryEnv(DirectRLEnv):
         self._robot = Articulation(self.cfg.robot)
         self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
         ## start: add assembled asset instance
-        self._assembled_asset1 = Articulation(self.cfg_task.assembled_asset1)
-        self._assembled_asset2 = Articulation(self.cfg_task.assembled_asset2)
-        self._assembled_asset3 = Articulation(self.cfg_task.assembled_asset3)
         ## end: add assembled asset instance
         
         self._held_asset = RigidObject(self.cfg_task.held_asset)
@@ -312,9 +309,6 @@ class RefineryEnv(DirectRLEnv):
         self.scene.articulations["robot"] = self._robot
         self.scene.articulations["fixed_asset"] = self._fixed_asset
         ## start: add assembled asset to the scene
-        self.scene.articulations["assembled_asset1"] = self._assembled_asset1
-        self.scene.articulations["assembled_asset2"] = self._assembled_asset2
-        self.scene.articulations["assembled_asset3"] = self._assembled_asset3
         ## end: add assembled asset to the scene
         
         self.scene.rigid_objects["held_asset"] = self._held_asset
@@ -400,20 +394,31 @@ class RefineryEnv(DirectRLEnv):
             p=2, dim=-1).mean(-1)
         self.last_update_timestamp = self._robot._data._sim_timestamp
 
+    def _get_goal_obs_noise(self):
+
+        rand_sample = torch.rand((self.num_envs, 3), dtype=torch.float32, device=self.device)
+        noise_init_rand = 2 * (rand_sample - 0.5)  # [-1, 1]
+        obs_noise = torch.tensor(
+            self.cfg_task.goal_obs_noise,
+            dtype=torch.float32, device=self.device)
+        goal_obs_noise = noise_init_rand @ torch.diag(obs_noise)
+        return goal_obs_noise
+
     def _get_observations(self):
         """ Get actor/critic inputs using assymetric critic. """
         # noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
 
-        # prev_actions = self.actions.clone()
+        goal_obs_noise = self._get_goal_obs_noise()
 
         obs_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
             'fingertip_pos': self.fingertip_midpoint_pos,
             'fingertip_quat': self.fingertip_midpoint_quat,
-            'fingertip_goal_pos': self.gripper_goal_pos,
+            'fingertip_goal_pos': self.gripper_goal_pos+goal_obs_noise,
             'fingertip_goal_quat': self.gripper_goal_quat,
-            'delta_pos': self.gripper_goal_pos - self.fingertip_midpoint_pos, 
+            'delta_pos': self.gripper_goal_pos+goal_obs_noise - self.fingertip_midpoint_pos, 
         }
+        # print(f"obs_dict: {obs_dict}")
 
         state_dict = {
             'joint_pos': self.joint_pos[:, 0:7],
@@ -514,9 +519,9 @@ class RefineryEnv(DirectRLEnv):
 
         self.ctrl_target_fingertip_midpoint_pos = self.fingertip_midpoint_pos + pos_actions
         # To speed up learning, never allow the policy to move more than 5cm away from the base.
-        delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
-        pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
-        self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
+        # delta_pos = self.ctrl_target_fingertip_midpoint_pos - self.fixed_pos_action_frame
+        # pos_error_clipped = torch.clip(delta_pos, -self.cfg.ctrl.pos_action_bounds[0], self.cfg.ctrl.pos_action_bounds[1])
+        # self.ctrl_target_fingertip_midpoint_pos = self.fixed_pos_action_frame + pos_error_clipped
 
         # Convert to quat and set rot target
         angle = torch.norm(rot_actions, p=2, dim=-1)
@@ -532,15 +537,15 @@ class RefineryEnv(DirectRLEnv):
         )
         self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_mul(rot_actions_quat, self.fingertip_midpoint_quat)
         
-        target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
-        target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
-        target_euler_xyz[:, 1] = 0.0
+        # target_euler_xyz = torch.stack(torch_utils.get_euler_xyz(self.ctrl_target_fingertip_midpoint_quat), dim=1)
+        # target_euler_xyz[:, 0] = 3.14159  # Restrict actions to be upright.
+        # target_euler_xyz[:, 1] = 0.0
 
-        self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
-            roll=target_euler_xyz[:, 0],
-            pitch=target_euler_xyz[:, 1],
-            yaw=target_euler_xyz[:, 2]
-        )
+        # self.ctrl_target_fingertip_midpoint_quat = torch_utils.quat_from_euler_xyz(
+        #     roll=target_euler_xyz[:, 0],
+        #     pitch=target_euler_xyz[:, 1],
+        #     yaw=target_euler_xyz[:, 2]
+        # )
 
         self.ctrl_target_gripper_dof_pos = 0.0
         self.generate_ctrl_signals()
@@ -849,7 +854,6 @@ class RefineryEnv(DirectRLEnv):
             dtype=torch.float32, device=self.device)
         fixed_pos_init_rand = fixed_pos_init_rand @ torch.diag(fixed_asset_init_pos_rand)
         fixed_state[:, 0:3] += fixed_pos_init_rand + self.scene.env_origins[env_ids]
-        fixed_state[:, 3] += 0.1435
 
         # (1.b.) Orientation
         fixed_orn_init_yaw = np.deg2rad(self.cfg_task.fixed_asset_init_orn_deg)
@@ -869,12 +873,6 @@ class RefineryEnv(DirectRLEnv):
         self._fixed_asset.reset()
 
         ## start: set assembled parts to be in the same state as fixed_asset
-        self._assembled_asset1.write_root_state_to_sim(fixed_state, env_ids=env_ids)
-        self._assembled_asset1.reset()
-        self._assembled_asset2.write_root_state_to_sim(fixed_state, env_ids=env_ids)
-        self._assembled_asset2.reset()
-        self._assembled_asset3.write_root_state_to_sim(fixed_state, env_ids=env_ids)
-        self._assembled_asset3.reset()
         ## end: set assembled parts to be in the same state as fixed_asset
         
 
@@ -926,7 +924,7 @@ class RefineryEnv(DirectRLEnv):
         held_state[env_ids, 0:3] = self.fixed_pos[env_ids].clone() + self.scene.env_origins[env_ids]
         held_state[env_ids, 3:7] = self.fixed_quat[env_ids].clone()
         held_state[env_ids, 7:] = 0.0
-        
+
         held_state[env_ids, 0] += self.disassembly_directions[0] * self.curriculum_disp
         held_state[env_ids, 1] += self.disassembly_directions[1] * self.curriculum_disp
         held_state[env_ids, 2] += self.disassembly_directions[2] * self.curriculum_disp
