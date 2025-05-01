@@ -181,10 +181,11 @@ class RefineryEnv(DirectRLEnv):
 
         # Load grasp pose from json files given assembly ID
         # Grasp pose tensors
-        self.palm_to_finger_center = torch.tensor([0.0, 0.0, -0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.robot_to_gripper_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.palm_to_finger_center = torch.tensor([0.0, 0.0, 0.01], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
+        self.robot_to_gripper_quat = torch.tensor([0.0, 1.0, 0.0, 0.0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.plug_grasp_pos_local = self.plug_grasps[:self.num_envs, :3]
-        self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
+        # self.plug_grasp_quat_local = torch.roll(self.plug_grasps[:self.num_envs, 3:], 1 , 1)
+        self.plug_grasp_quat_local = self.plug_grasps[:self.num_envs, 3:]
 
         # Computer body indices.
         # self.left_finger_body_idx = self._robot.body_names.index('panda_leftfinger')
@@ -299,6 +300,7 @@ class RefineryEnv(DirectRLEnv):
         self._robot = Articulation(self.cfg.robot)
         self._fixed_asset = Articulation(self.cfg_task.fixed_asset)
         ## start: add assembled asset instance
+        self._assembled_asset1 = Articulation(self.cfg_task.assembled_asset1)
         ## end: add assembled asset instance
         
         self._held_asset = RigidObject(self.cfg_task.held_asset)
@@ -309,6 +311,7 @@ class RefineryEnv(DirectRLEnv):
         self.scene.articulations["robot"] = self._robot
         self.scene.articulations["fixed_asset"] = self._fixed_asset
         ## start: add assembled asset to the scene
+        self.scene.articulations["assembled_asset1"] = self._assembled_asset1
         ## end: add assembled asset to the scene
         
         self.scene.rigid_objects["held_asset"] = self._held_asset
@@ -873,6 +876,8 @@ class RefineryEnv(DirectRLEnv):
         self._fixed_asset.reset()
 
         ## start: set assembled parts to be in the same state as fixed_asset
+        self._assembled_asset1.write_root_state_to_sim(fixed_state, env_ids=env_ids)
+        self._assembled_asset1.reset()
         ## end: set assembled parts to be in the same state as fixed_asset
         
 

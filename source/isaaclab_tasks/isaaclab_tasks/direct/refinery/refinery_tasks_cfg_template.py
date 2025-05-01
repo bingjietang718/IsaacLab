@@ -196,7 +196,7 @@ class Insertion(AssemblyTask):
     engage_threshold: float = 0.9
     engage_height_thresh: float = 0.01
     success_height_thresh: float = 0.003
-    close_error_thresh: float = 0.015
+    close_error_thresh: float = 0.005
 
     fixed_asset: ArticulationCfg = ArticulationCfg(
         prim_path="/World/envs/env_.*/FixedAsset",
@@ -256,7 +256,7 @@ class Insertion(AssemblyTask):
                 max_contact_impulse=1e32,
             ),
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-                articulation_enabled=False,
+                articulation_enabled=True,
                 enabled_self_collisions=True,
                 fix_root_link=False, # add this so the fixed asset is set to have a fixed base
             ),
